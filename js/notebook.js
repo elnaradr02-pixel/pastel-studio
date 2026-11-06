@@ -3,6 +3,8 @@ import * as db from './db.js';
 import * as ink from './ink.js';
 import { icon } from './icons.js';
 import { h, esc, toast, sheet, dialog, confirmDialog, saveFile } from './ui.js';
+import { recognize, SHAPE_NAMES } from './shapes.js';
+import * as stk from './stickers.js';
 
 const { PAGE_W, PAGE_H, STRIDE } = ink;
 const RS = 2;                 // пикселей растра на единицу страницы
@@ -42,23 +44,26 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   pager.append(btnPrev, pageLabel, btnNext, btnAdd);
   titleBox.append(pager);
   const actions = h('div', { class: 'nb-actions' });
+  const btnSticker = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Стикеры' }, icon('sticker'));
   const btnUndo = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Отменить' }, icon('undo'));
   const btnRedo = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Повторить' }, icon('redo'));
   const btnExport = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Сохранить страницу как PNG' }, icon('share'));
   const btnMore = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Ещё' }, icon('more'));
-  actions.append(btnUndo, btnRedo, btnExport, btnMore);
+  actions.append(btnSticker, btnUndo, btnRedo, btnExport, btnMore);
   top.append(btnBack, titleBox, actions);
 
   const vp = h('div', { class: 'nb-viewport', 'aria-label': 'Страница для рисования' });
   const stage = h('div', { class: 'nb-stage' });
   const pageEl = h('div', { class: 'nb-page' });
   const inkCanvas = h('canvas', { class: 'nb-ink', width: PAGE_W * RS, height: PAGE_H * RS });
-  pageEl.append(inkCanvas);
+  const stickerLayer = h('div', { class: 'nb-stickers' });
+  pageEl.append(stickerLayer, inkCanvas);
   stage.append(pageEl);
   const detail = h('canvas', { class: 'nb-detail', hidden: true });
   const stage2 = h('div', { class: 'nb-stage nb-stage-live' });
   const liveCanvas = h('canvas', { class: 'nb-live', width: PAGE_W * RS, height: PAGE_H * RS });
-  stage2.append(liveCanvas);
+  const selBox = h('div', { class: 'sel-box', hidden: true }, '<span class="sel-h sel-del">×</span><span class="sel-h sel-scale"></span><span class="sel-h sel-text">Aa</span>');
+  stage2.append(liveCanvas, selBox);
   vp.append(stage, detail, stage2);
 
   const dock = buildDock();
@@ -88,6 +93,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     const t = `translate(${view.tx}px, ${view.ty}px) scale(${view.s})`;
     stage.style.transform = t;
     stage2.style.transform = t;
+    if (selected) updateSel();
   }
   function fitView() {
     const w = vp.clientWidth, hgt = vp.clientHeight;
@@ -151,13 +157,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     const m = [dpr * view.s, 0, 0, dpr * view.s, dpr * view.tx, dpr * view.ty];
     detailCtx.setTransform(1, 0, 0, 1, 0, 0);
     detailCtx.clearRect(0, 0, W, H);
-    detailCtx.setTransform(...m);
-    detailCtx.save();
-    detailCtx.beginPath();
-    if (detailCtx.roundRect) detailCtx.roundRect(0, 0, PAGE_W, PAGE_H, 18); else detailCtx.rect(0, 0, PAGE_W, PAGE_H);
-    detailCtx.clip();
-    ink.drawPaper(detailCtx, page.paper, ux0, uy0, ux1, uy1);
-    detailCtx.restore();
+    // бумага — фон страницы, стикеры — отдельный слой под чернилами; здесь только чернила
     tmpCtx.setTransform(1, 0, 0, 1, 0, 0);
     tmpCtx.clearRect(0, 0, W, H);
     tmpCtx.setTransform(...m);
@@ -166,18 +166,27 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
       if (b.x1 < ux0 || b.x0 > ux1 || b.y1 < uy0 || b.y0 > uy1) continue;
       ink.renderStroke(tmpCtx, s);
     }
+    detailCtx.setTransform(...m);
+    detailCtx.save();
+    detailCtx.beginPath();
+    if (detailCtx.roundRect) detailCtx.roundRect(0, 0, PAGE_W, PAGE_H, 18); else detailCtx.rect(0, 0, PAGE_W, PAGE_H);
+    detailCtx.clip();
     detailCtx.setTransform(1, 0, 0, 1, 0, 0);
     detailCtx.drawImage(tmp, 0, 0);
+    detailCtx.restore();
     detail.hidden = false;
     inkCanvas.style.visibility = 'hidden';
   }
 
   function showPage() {
     page = pages[idx];
+    if (!page.stickers) page.stickers = [];
+    selected = null;
     history = [];
     future = [];
     pageEl.setAttribute('style', ink.paperCss(page.paper));
     renderInk();
+    renderStickers();
     hideDetail();
     pageLabel.textContent = `${idx + 1} / ${pages.length}`;
     btnPrev.disabled = idx === 0;
@@ -241,7 +250,42 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     drawn = -1;
     liveBox = null;
     lastPt = null;
+    holdAt = null;
+    clearTimeout(holdTimer);
     addPoints(e);
+  }
+
+  // ---------- фигуры: нарисовали и задержали карандаш ----------
+  let holdTimer = 0, holdAt = null;
+  function armHold(cx, cy) {
+    if (!stroke || stroke.tool === 'eraser' || stroke.snapped || settings.shapes === false) return;
+    if (holdAt && Math.hypot(cx - holdAt.x, cy - holdAt.y) < 4) return; // карандаш стоит — таймер идёт
+    holdAt = { x: cx, y: cy };
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(trySnap, 550);
+  }
+  function trySnap() {
+    if (!stroke || stroke.snapped) return;
+    const res = recognize(stroke.pts, STRIDE);
+    if (!res) return;
+    const p = stroke.pts, ws = [];
+    let as = 0;
+    for (let i = 0; i < p.length; i += STRIDE) { ws.push(p[i + 2]); as += p[i + 3]; }
+    ws.sort((a, b) => a - b);
+    const w = stroke.tool === 'marker' ? stroke.size : ws[Math.floor(ws.length / 2)];
+    const a = as / (p.length / STRIDE);
+    clearLive(liveBox);
+    liveBox = null;
+    const pts = [];
+    for (const [x, y] of res.outline) pts.push(x, y, w, a);
+    stroke.pts = pts;
+    stroke.snapped = res.type;
+    for (let i = 0; i < pts.length; i += STRIDE) growBox(pts[i], pts[i + 1], w);
+    const n = pts.length / STRIDE;
+    if (stroke.tool === 'marker') ink.drawMarker(liveCtx, stroke, n);
+    else ink.drawIncrement(liveCtx, stroke, 0, n - 1);
+    drawn = n - 1;
+    toast(SHAPE_NAMES[res.type] || 'Фигура');
   }
 
   function widthFor(e, x, y, t, tool) {
@@ -303,6 +347,8 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
       lastPt = { x, y, t, f: f || 1 };
       growBox(x, y, w);
     }
+    const last = list[list.length - 1];
+    if (last) armHold(last.clientX, last.clientY);
     paintLive();
   }
 
@@ -349,8 +395,10 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   function endStroke() {
     if (!stroke) return;
     cancelAnimationFrame(rafLive); rafLive = 0;
+    clearTimeout(holdTimer);
     const s = stroke;
     stroke = null; strokePtr = null;
+    delete s.snapped;
     const n = s.pts.length / STRIDE;
     if (!n) { clearLive(liveBox); return; }
     // дорисовать хвост
@@ -379,6 +427,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
 
   function cancelStroke() {
     if (!stroke) return;
+    clearTimeout(holdTimer);
     const s = stroke;
     stroke = null; strokePtr = null;
     clearLive(liveBox);
@@ -386,26 +435,43 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   }
 
   // ---------- отмена ----------
+  function applySticker(step, dir) {
+    // dir: 'undo' | 'redo'
+    const list = page.stickers;
+    const at = (id) => list.findIndex((x) => x.id === id);
+    if (step.type === 'stAdd') { if (dir === 'undo') list.splice(at(step.st.id), 1); else list.push({ ...step.st }); }
+    else if (step.type === 'stDel') { if (dir === 'undo') list.splice(step.index, 0, { ...step.st }); else list.splice(at(step.st.id), 1); }
+    else if (step.type === 'stEdit') { const i = at(step.id); if (i >= 0) list[i] = { ...(dir === 'undo' ? step.before : step.after) }; }
+    selected = null;
+    renderStickers();
+    updateUndo();
+    scheduleSave();
+  }
   function undo() {
-    if (stroke) return;
+    if (stroke || stickOp) return;
     const step = history.pop();
     if (!step) return;
+    if (step.type.startsWith('st')) { future.push(step); applySticker(step, 'undo'); return; }
     if (step.type === 'add') future.push({ type: 'add', stroke: page.strokes.pop() });
-    else if (step.type === 'clear') { future.push({ type: 'clear', strokes: page.strokes }); page.strokes = step.strokes; }
+    else if (step.type === 'clear') { future.push({ type: 'clear', strokes: page.strokes, stickers: page.stickers }); page.strokes = step.strokes; page.stickers = step.stickers || []; renderStickers(); }
     afterChange();
   }
   function redo() {
-    if (stroke) return;
+    if (stroke || stickOp) return;
     const step = future.pop();
     if (!step) return;
+    if (step.type.startsWith('st')) { history.push(step); applySticker(step, 'redo'); return; }
     if (step.type === 'add') { page.strokes.push(step.stroke); history.push({ type: 'add' }); }
-    else if (step.type === 'clear') { history.push({ type: 'clear', strokes: page.strokes }); page.strokes = []; }
+    else if (step.type === 'clear') { history.push({ type: 'clear', strokes: page.strokes, stickers: page.stickers }); page.strokes = []; page.stickers = []; renderStickers(); }
     afterChange();
   }
   function clearPage() {
-    if (!page.strokes.length) return;
-    history.push({ type: 'clear', strokes: page.strokes });
+    if (!page.strokes.length && !page.stickers.length) return;
+    history.push({ type: 'clear', strokes: page.strokes, stickers: page.stickers });
     page.strokes = [];
+    page.stickers = [];
+    selected = null;
+    renderStickers();
     future = [];
     afterChange();
     toast('Страница очищена. Отменить — стрелка назад');
@@ -475,6 +541,11 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
       return;
     }
     gesture = null;
+    if (!g.moved && quick && g.fingers === 1 && upPoint) {
+      const p = toPage(upPoint.x, upPoint.y);
+      const st = topStickerAt(p.x, p.y);
+      if (st || selected) { selected = st ? st.id : null; updateSel(); clampView(); return; }
+    }
     if (!g.moved && quick && g.fingers === 2) { undo(); toast('Отменено'); }
     else if (!g.moved && quick && g.fingers >= 3) { redo(); toast('Повторено'); }
     else if (g.kind === 'one' && !isZoomed() && upPoint) {
@@ -496,11 +567,148 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     scheduleDetail();
   }
 
+  // ---------- стикеры ----------
+  const stickerEls = new Map();
+  let selected = null;   // id выбранного стикера
+  let stickOp = null;    // перенос или поворот стикера
+  function stickerById(id) { return page.stickers.find((x) => x.id === id); }
+  function renderStickers() {
+    stickerLayer.innerHTML = '';
+    stickerEls.clear();
+    for (const st of page.stickers) { const el = stk.renderSticker(st); stickerLayer.append(el); stickerEls.set(st.id, el); }
+    updateSel();
+  }
+  function updateSel() {
+    const st = selected && stickerById(selected);
+    if (!st) { selBox.hidden = true; selected = null; return; }
+    const { w, h: hh } = stk.baseSize(st);
+    selBox.hidden = false;
+    selBox.style.width = w + 'px';
+    selBox.style.height = hh + 'px';
+    selBox.style.transform = `translate(${st.x - w / 2}px, ${st.y - hh / 2}px) rotate(${st.r}rad) scale(${st.s})`;
+    selBox.style.setProperty('--k', 1 / (st.s * view.s)); // ручки одного размера на экране при любом масштабе
+    selBox.classList.toggle('has-text', stk.isLabel(st.key));
+  }
+  function handleAt(st, x, y) {
+    const { w, h: hh } = stk.baseSize(st);
+    const R = 28 / view.s;
+    const spots = [['del', -w / 2, -hh / 2], ['scale', w / 2, hh / 2]];
+    if (stk.isLabel(st.key)) spots.push(['text', w / 2, -hh / 2]);
+    for (const [k, lx, ly] of spots) { const p = stk.fromLocal(st, lx, ly); if (Math.hypot(p.x - x, p.y - y) < R) return k; }
+    return stk.hit(st, x, y, 6 / view.s) ? 'move' : null;
+  }
+  function topStickerAt(x, y) {
+    for (let i = page.stickers.length - 1; i >= 0; i--) if (stk.hit(page.stickers[i], x, y)) return page.stickers[i];
+    return null;
+  }
+  function beginStickOp(kind, st, e, pt) {
+    stickOp = { kind, id: st.id, pid: e.pointerId, before: { ...st }, start: pt };
+    hideDetail();
+  }
+  function moveStickOp(e) {
+    const st = stickerById(stickOp.id);
+    if (!st) return;
+    const p = toPage(e.clientX, e.clientY);
+    const b = stickOp.before;
+    if (stickOp.kind === 'move') {
+      st.x = Math.min(PAGE_W, Math.max(0, b.x + p.x - stickOp.start.x));
+      st.y = Math.min(PAGE_H, Math.max(0, b.y + p.y - stickOp.start.y));
+    } else {
+      // уголок: расстояние до центра — размер, угол — поворот (рядом с прямыми углами прилипает)
+      const { w, h: hh } = stk.baseSize(st);
+      const dx = p.x - st.x, dy = p.y - st.y;
+      st.s = Math.min(6, Math.max(0.25, Math.hypot(dx, dy) / Math.hypot(w / 2, hh / 2)));
+      let r = Math.atan2(dy, dx) - Math.atan2(hh / 2, w / 2);
+      const snap = Math.round(r / (Math.PI / 4)) * (Math.PI / 4);
+      if (Math.abs(r - snap) < 0.07) r = snap;
+      st.r = r;
+    }
+    stk.placeSticker(stickerEls.get(st.id), st);
+    updateSel();
+  }
+  function endStickOp() {
+    const st = stickerById(stickOp.id), b = stickOp.before;
+    stickOp = null;
+    if (st && (b.x !== st.x || b.y !== st.y || b.s !== st.s || b.r !== st.r)) {
+      history.push({ type: 'stEdit', id: st.id, before: b, after: { ...st } });
+      future = [];
+      updateUndo();
+      scheduleSave();
+    }
+    scheduleDetail();
+  }
+  async function addSticker() {
+    const key = await dialog({ title: 'Стикеры', render: stk.pickerBody, actions: [{ label: 'Закрыть', value: null }] });
+    if (!key) return;
+    const r = vp.getBoundingClientRect();
+    const c = toPage(r.left + vp.clientWidth / 2, r.top + availH() / 2);
+    const st = { id: db.uid(), key, x: Math.min(PAGE_W - 80, Math.max(80, c.x)), y: Math.min(PAGE_H - 80, Math.max(80, c.y)), s: 1, r: 0 };
+    const { w, h: hh } = stk.baseSize(st);
+    st.s = Math.min(2, Math.max(0.4, 160 / view.s / Math.max(w, hh))); // около 160 точек на экране
+    page.stickers.push(st);
+    const el = stk.renderSticker(st);
+    stickerLayer.append(el);
+    stickerEls.set(st.id, el);
+    selected = st.id;
+    updateSel();
+    history.push({ type: 'stAdd', st: { ...st } });
+    future = [];
+    updateUndo();
+    scheduleSave();
+    toast('Тяните за середину, уголок — размер и поворот');
+  }
+  function deleteSticker(st) {
+    const index = page.stickers.findIndex((x) => x.id === st.id);
+    if (index < 0) return;
+    page.stickers.splice(index, 1);
+    stickerEls.get(st.id)?.remove();
+    stickerEls.delete(st.id);
+    selected = null;
+    updateSel();
+    history.push({ type: 'stDel', st: { ...st }, index });
+    future = [];
+    updateUndo();
+    scheduleSave();
+  }
+  async function editText(st) {
+    const value = await dialog({
+      title: 'Текст метки',
+      render: (body) => {
+        const input = h('input', { class: 'field', type: 'text', maxlength: 24, value: stk.labelInfo(st).text, 'aria-label': 'Текст метки' });
+        body.append(input);
+        setTimeout(() => { input.focus(); input.select(); }, 50);
+        return { value: () => input.value };
+      },
+      actions: [{ label: 'Отмена', value: null }, { label: 'Готово', primary: true }],
+    });
+    if (value == null) return;
+    const before = { ...st };
+    st.text = value.trim() || stk.labelInfo({ key: st.key }).text;
+    const old = stickerEls.get(st.id);
+    const el = stk.renderSticker(st);
+    old.replaceWith(el);
+    stickerEls.set(st.id, el);
+    updateSel();
+    history.push({ type: 'stEdit', id: st.id, before, after: { ...st } });
+    future = [];
+    updateUndo();
+    scheduleSave();
+  }
+
   // ---------- указатели ----------
   const capture = (id) => { try { vp.setPointerCapture(id); } catch { /* указатель уже отпущен — не страшно */ } };
   function onDown(e) {
     if (e.pointerType === 'pen') penUntil = performance.now() + PEN_GUARD_MS;
-    if (stroke) return; // уже рисуем
+    if (stroke || stickOp) return; // уже рисуем или двигаем стикер
+    if (selected && !(e.pointerType === 'touch' && (touches.size || performance.now() < penUntil))) {
+      const st = stickerById(selected);
+      const pt = toPage(e.clientX, e.clientY);
+      const hnd = st && handleAt(st, pt.x, pt.y);
+      if (hnd === 'del') { e.preventDefault(); deleteSticker(st); return; }
+      if (hnd === 'text') { e.preventDefault(); editText(st); return; }
+      if (hnd === 'move' || hnd === 'scale') { e.preventDefault(); capture(e.pointerId); beginStickOp(hnd, st, e, pt); return; }
+      if (e.pointerType !== 'touch') { selected = null; updateSel(); } // карандашом мимо — снять выбор и рисовать
+    }
     if (canDraw(e)) {
       if (e.pointerType === 'pen' && touches.size) { touches.clear(); gesture = null; clampView(); }
       e.preventDefault();
@@ -518,7 +726,8 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   }
   function onMove(e) {
     if (e.pointerType === 'pen') penUntil = performance.now() + PEN_GUARD_MS;
-    if (stroke && e.pointerId === strokePtr) { e.preventDefault(); addPoints(e); return; }
+    if (stroke && e.pointerId === strokePtr) { e.preventDefault(); if (!stroke.snapped) addPoints(e); return; }
+    if (stickOp && e.pointerId === stickOp.pid) { e.preventDefault(); moveStickOp(e); return; }
     if (touches.has(e.pointerId)) {
       e.preventDefault();
       touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -531,6 +740,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
       if (e.type === 'pointercancel') cancelStroke(); else endStroke();
       return;
     }
+    if (stickOp && e.pointerId === stickOp.pid) { endStickOp(); return; }
     if (touches.has(e.pointerId)) {
       touches.delete(e.pointerId);
       gestureEnd({ x: e.clientX, y: e.clientY });
@@ -616,6 +826,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     const g = c.getContext('2d');
     g.setTransform(RS, 0, 0, RS, 0, 0);
     ink.drawPaper(g, page.paper);
+    await stk.drawStickers(g, page.stickers);
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.drawImage(inkCanvas, 0, 0);
     const blob = await new Promise((res) => c.toBlob(res, 'image/png'));
@@ -635,6 +846,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
         { label: 'Удалить страницу', icon: 'trash', danger: true, onClick: deletePage },
         { separator: true },
         { label: 'Рисовать пальцем', icon: 'hand', checked: !!settings.fingerDraw, onClick: () => { settings.fingerDraw = !settings.fingerDraw; db.setMeta('fingerDraw', settings.fingerDraw); toast(settings.fingerDraw ? 'Палец рисует, двумя пальцами — листать и масштаб' : 'Палец листает и масштабирует, рисует только карандаш'); } },
+        { label: 'Фигуры по удержанию', icon: 'shape', checked: settings.shapes !== false, onClick: () => { settings.shapes = settings.shapes === false; db.setMeta('shapes', settings.shapes); toast(settings.shapes ? 'Нарисуйте фигуру и задержите карандаш — она выровняется' : 'Фигуры остаются как нарисованы'); } },
         { label: 'Вся страница целиком', icon: 'fit', onClick: () => { fitView(); hideDetail(); } },
       ],
     });
@@ -700,6 +912,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   btnRedo.addEventListener('click', redo);
   btnExport.addEventListener('click', exportPng);
   btnMore.addEventListener('click', moreMenu);
+  btnSticker.addEventListener('click', addSticker);
 
   const ro = new ResizeObserver(() => { fitView(); hideDetail(); });
   ro.observe(vp);
@@ -709,7 +922,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   showPage();
 
   // для автотестов: состояние без доступа к внутренностям
-  window.__pastel = { get strokes() { return page.strokes.length; }, get page() { return idx; }, get pages() { return pages.length; }, get zoom() { return view.s / view.fit; }, flushSave };
+  window.__pastel = { get stickers() { return page.stickers.length; }, get selected() { return selected; }, get lastShape() { const s = page.strokes[page.strokes.length - 1]; return s ? s.pts.length / STRIDE : 0; }, get strokes() { return page.strokes.length; }, get page() { return idx; }, get pages() { return pages.length; }, get zoom() { return view.s / view.fit; }, flushSave };
 
   return async function cleanup() {
     await flushSave();

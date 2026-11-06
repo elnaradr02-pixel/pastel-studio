@@ -1,0 +1,92 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Сборка раскрасок</title>
+<script type="module">
+// Страница-сборщик: её открывает tools/build-library.cjs (Playwright) и вызывает window.buildPicture.
+import * as pbn from '../js/pbn.js';
+
+function toB64(u16) {
+  const bytes = new Uint8Array(u16.buffer, u16.byteOffset, u16.byteLength);
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function preview(pic, size) {
+  // готовая картинка: каждая область своим цветом + тонкие контуры
+  const k = size / Math.max(pic.w, pic.h);
+  const c = document.createElement('canvas'); c.width = pic.w; c.height = pic.h;
+  const g = c.getContext('2d'); const img = g.createImageData(pic.w, pic.h); const d = img.data;
+  const rgb = pic.palette.map((p) => { const n = parseInt(p.hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; });
+  for (let i = 0; i < pic.map.length; i++) {
+    const r = pic.map[i], [R, G, B] = rgb[pic.regions[r].c], o = i * 4, x = i % pic.w;
+    const edge = (x < pic.w - 1 && pic.map[i + 1] !== r) || (i + pic.w < pic.map.length && pic.map[i + pic.w] !== r);
+    d[o] = edge ? R * 0.75 : R; d[o + 1] = edge ? G * 0.75 : G; d[o + 2] = edge ? B * 0.75 : B; d[o + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const t = document.createElement('canvas'); t.width = Math.round(pic.w * k); t.height = Math.round(pic.h * k);
+  const tg = t.getContext('2d'); tg.imageSmoothingQuality = 'high'; tg.drawImage(c, 0, 0, t.width, t.height);
+  return t.toDataURL('image/jpeg', 0.86);
+}
+function outlinePreview(pic, size) {
+  const k = size / Math.max(pic.w, pic.h);
+  const c = document.createElement('canvas'); c.width = pic.w; c.height = pic.h;
+  const g = c.getContext('2d'); const img = g.createImageData(pic.w, pic.h); const d = img.data;
+  for (let i = 0; i < pic.map.length; i++) {
+    const r = pic.map[i], x = i % pic.w, o = i * 4;
+    const edge = (x < pic.w - 1 && pic.map[i + 1] !== r) || (i + pic.w < pic.map.length && pic.map[i + pic.w] !== r);
+    const v = edge ? 110 : 251; d[o] = v; d[o + 1] = edge ? 90 : 247; d[o + 2] = edge ? 98 : 242; d[o + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const t = document.createElement('canvas'); t.width = Math.round(pic.w * k); t.height = Math.round(pic.h * k);
+  t.getContext('2d').drawImage(c, 0, 0, t.width, t.height);
+  return t.toDataURL('image/jpeg', 0.86);
+}
+
+// обрезать тёмную раму/поля по краям картины и ещё чуть-чуть внутрь
+function autoCrop(img, inset) {
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, W, H).data;
+  const dark = (x0, y0, x1, y1) => { let s = 0, n = 0; for (let y = y0; y < y1; y += 2) for (let x = x0; x < x1; x += 2) { const o = (y * W + x) * 4; s += d[o] + d[o + 1] + d[o + 2]; n++ } return s / n / 3 < 38 };
+  let l = 0, r = W, t = 0, b = H;
+  while (l < W * 0.15 && dark(l, 0, l + 1, H)) l++;
+  while (r > W * 0.85 && dark(r - 1, 0, r, H)) r--;
+  while (t < H * 0.15 && dark(l, t, r, t + 1)) t++;
+  while (b > H * 0.85 && dark(l, b - 1, r, b)) b--;
+  const ix = Math.round((r - l) * inset), iy = Math.round((b - t) * inset);
+  l += ix; r -= ix; t += iy; b -= iy;
+  const out = document.createElement('canvas'); out.width = r - l; out.height = b - t;
+  out.getContext('2d').drawImage(c, l, t, r - l, b - t, 0, 0, r - l, b - t);
+  window.__crop = [l, t, r, b, W, H];
+  return out;
+}
+
+window.buildPicture = async (job) => {
+  window.__orig = null; window.__crop = null;
+  const t0 = performance.now();
+  let pic;
+  if (job.kind === 'code') {
+    const mod = await import(job.module + '?v=' + Date.now());
+    pic = pbn.buildFromShapes(mod.default, job.longSide, job.opts || {});
+  } else {
+    const raw = new Image();
+    raw.src = job.dataUrl;
+    await raw.decode();
+    const img = autoCrop(raw, job.inset ?? 0.006);
+    pic = pbn.buildFromImage(img, job.opts);
+    const t = document.createElement('canvas'); const k = 560 / Math.max(img.width, img.height);
+    t.width = Math.round(img.width * k); t.height = Math.round(img.height * k);
+    const tg = t.getContext('2d'); tg.imageSmoothingQuality = 'high'; tg.drawImage(img, 0, 0, t.width, t.height);
+    window.__orig = t.toDataURL('image/jpeg', 0.85);
+  }
+  const meta = { w: pic.w, h: pic.h, palette: pic.palette, regions: pic.regions };
+  return {
+    meta: JSON.stringify(meta), rle: toB64(pbn.encodeMap(pic.map)),
+    preview: preview(pic, job.previewSize || 520), outline: outlinePreview(pic, 520),
+    orig: window.__orig, crop: window.__crop,
+    stats: { w: pic.w, h: pic.h, regions: pic.regions.length, colors: pic.palette.length, minRad: Math.min(...pic.regions.map((r) => r.rad)), ms: Math.round(performance.now() - t0) },
+  };
+};
+window.ready = true;
+</script>

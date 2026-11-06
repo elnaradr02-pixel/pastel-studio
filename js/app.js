@@ -5,6 +5,7 @@ import { COVERS, COVER_KEYS } from './covers.js';
 import { icon } from './icons.js';
 import { h, esc, toast, sheet, dialog, confirmDialog, saveFile } from './ui.js';
 import { openNotebook, blankPage } from './notebook.js';
+import { openColoring } from './coloring.js';
 
 const root = document.getElementById('app');
 const settings = { fingerDraw: false, hasPressure: false };
@@ -13,6 +14,8 @@ let cleanup = null;
 async function boot() {
   settings.fingerDraw = await db.getMeta('fingerDraw', false);
   settings.hasPressure = await db.getMeta('hasPressure', false);
+  settings.brushPt = await db.getMeta('brushPt', 26);
+  settings.shapes = await db.getMeta('shapes', true);
   window.addEventListener('hashchange', route);
   // первое касание — просим постоянное хранилище (Safari решает сам, чаще соглашается для приложения с экрана «Домой»)
   window.addEventListener('pointerdown', async function once() {
@@ -28,18 +31,30 @@ async function boot() {
 async function route() {
   if (cleanup) { const c = cleanup; cleanup = null; await c(); }
   const m = location.hash.match(/^#\/nb\/([\w-]+)/);
+  const c = location.hash.match(/^#\/color\/([\w-]+)\/([\w-]+)/);
   if (m) {
     cleanup = await openNotebook(root, m[1], { onBack: () => { location.hash = '#/'; }, settings });
+  } else if (c) {
+    const cat = await catalog();
+    const info = cat.find((p) => p.id === c[1]) || { title: 'Раскраска' };
+    cleanup = await openColoring(root, { id: c[1], level: c[2], info }, { onBack: () => { location.hash = '#/colors'; }, settings });
   } else {
-    await renderHome();
+    await renderHome(location.hash.startsWith('#/colors') ? 'colors' : 'notebooks');
   }
 }
 
 // ---------- главный экран ----------
-async function renderHome() {
-  const notebooks = (await db.getAll('notebooks')).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+async function renderHome(tab = 'notebooks') {
   root.innerHTML = '';
   const screen = h('div', { class: 'home' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist' });
+  for (const [k, label, ic] of [['notebooks', 'Блокноты', 'book'], ['colors', 'Раскраски', 'palette']]) {
+    const t = h('button', { class: 'tab' + (k === tab ? ' on' : ''), type: 'button', role: 'tab', 'aria-selected': k === tab }, `${icon(ic, 20)}<span>${label}</span>`);
+    t.addEventListener('click', () => { location.hash = k === 'colors' ? '#/colors' : '#/'; });
+    tabs.append(t);
+  }
+  if (tab === 'colors') return renderGallery(screen, tabs);
+  const notebooks = (await db.getAll('notebooks')).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   const head = h('header', { class: 'home-head' }, `
     <div>
       <div class="home-hello">привет, художница</div>
@@ -67,7 +82,7 @@ async function renderHome() {
     card.append(open, meta);
     grid.append(card);
   }
-  screen.append(head, grid);
+  screen.append(head, tabs, grid);
   if (!notebooks.length) {
     screen.append(h('p', { class: 'home-empty' }, 'Здесь будут ваши блокноты. Создайте первый — выберите обложку и бумагу.'));
   }
@@ -77,6 +92,48 @@ async function renderHome() {
 function pagesWord(n) {
   const f = n % 10 === 1 && n % 100 !== 11 ? 'страница' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'страницы' : 'страниц';
   return `${n} ${f}`;
+}
+
+// ---------- раскраски ----------
+let catalogCache = null;
+async function catalog() {
+  if (catalogCache) return catalogCache;
+  try { catalogCache = (await (await fetch('data/catalog.json')).json()).pictures; }
+  catch { catalogCache = []; }
+  return catalogCache;
+}
+
+async function renderGallery(screen, tabs) {
+  const pics = await catalog();
+  const progress = new Map((await db.getAll('coloring')).map((r) => [r.key, r]));
+  const head = h('header', { class: 'home-head' }, `
+    <div>
+      <div class="home-hello">раскрашиваем по номерам</div>
+      <h1 class="home-title">Раскраски</h1>
+    </div>`);
+  const grid = h('div', { class: 'pic-grid' });
+  for (const p of pics) {
+    const best = p.levels.map((l) => progress.get(`${p.id}:${l.key}`)).filter(Boolean).sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    const pct = best ? Math.floor((best.done / best.total) * 100) : 0;
+    const card = h('button', { class: 'pic-card', type: 'button', 'aria-label': `${p.title}${p.author ? ', ' + p.author : ''}${pct ? `, раскрашено ${pct}%` : ''}` },
+      `<span class="pic-thumb"><img src="${p.thumb}" alt="" loading="lazy">${p.kind === 'classic' ? '<span class="pic-badge">шедевр</span>' : ''}${pct ? `<span class="pic-bar"><i style="width:${pct}%"></i></span>` : ''}</span>
+       <span class="pic-title">${esc(p.title)}</span>${p.author ? `<span class="pic-author">${esc(p.author)}${p.year ? ', ' + esc(p.year) : ''}</span>` : ''}`);
+    card.addEventListener('click', () => {
+      if (p.levels.length === 1) { location.hash = `#/color/${p.id}/${p.levels[0].key}`; return; }
+      sheet({
+        title: p.title,
+        items: p.levels.map((l) => {
+          const pr = progress.get(`${p.id}:${l.key}`);
+          const tail = pr ? ` · ${Math.floor((pr.done / pr.total) * 100)}%` : '';
+          return { label: `${l.label} — ${l.regions} областей${tail}`, icon: 'palette', onClick: () => { location.hash = `#/color/${p.id}/${l.key}`; } };
+        }),
+      });
+    });
+    grid.append(card);
+  }
+  screen.append(head, tabs, h('p', { class: 'section-note' }, 'Выберите номер внизу и водите карандашом свободно: краска ложится только в области этого номера. Когда область закрашена почти целиком, цифра исчезает.'), grid);
+  if (!pics.length) screen.append(h('p', { class: 'home-empty' }, 'Раскраски не загрузились. Проверьте интернет и откройте ещё раз.'));
+  root.append(screen);
 }
 
 // ---------- создание и правка блокнота ----------

@@ -1,0 +1,386 @@
+{
+ "pictures": [
+  {
+   "id": "house",
+   "title": "Уютный домик",
+   "author": "",
+   "year": "",
+   "kind": "code",
+   "thumb": "data/thumbs/house.jpg",
+   "credit": "",
+   "levels": [
+    {
+     "key": "std",
+     "label": "Обычная",
+     "regions": 69,
+     "colors": 14
+    }
+   ]
+  },
+  {
+   "id": "flowers",
+   "title": "Цветы",
+   "author": "",
+   "year": "",
+   "kind": "code",
+   "thumb": "data/thumbs/flowers.jpg",
+   "credit": "",
+   "levels": [
+    {
+     "key": "std",
+     "label": "Обычная",
+     "regions": 72,
+     "colors": 14
+    }
+   ]
+  },
+  {
+   "id": "van-gogh-bedroom",
+   "title": "Спальня в Арле",
+   "author": "Винсент Ван Гог",
+   "year": "1889",
+   "kind": "classic",
+   "thumb": "data/thumbs/van-gogh-bedroom.jpg",
+   "credit": "Винсент Ван Гог. «Спальня в Арле», 1889. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/28560",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 48,
+     "colors": 14
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 107,
+     "colors": 20
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 225,
+     "colors": 26
+    }
+   ]
+  },
+  {
+   "id": "hokusai-great-wave",
+   "title": "Большая волна в Канагаве",
+   "author": "Кацусика Хокусай",
+   "year": "ок. 1830–32",
+   "kind": "classic",
+   "thumb": "data/thumbs/hokusai-great-wave.jpg",
+   "credit": "Кацусика Хокусай. «Большая волна в Канагаве», ca. 1830–32. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/45434",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 20,
+     "colors": 8
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 66,
+     "colors": 17
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 176,
+     "colors": 24
+    }
+   ]
+  },
+  {
+   "id": "monet-water-lilies",
+   "title": "Кувшинки",
+   "author": "Клод Моне",
+   "year": "1906",
+   "kind": "classic",
+   "thumb": "data/thumbs/monet-water-lilies.jpg",
+   "credit": "Клод Моне. «Кувшинки (Водяные лилии)», 1906. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/16568",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 31,
+     "colors": 11
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 115,
+     "colors": 19
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 340,
+     "colors": 28
+    }
+   ]
+  },
+  {
+   "id": "van-gogh-irises",
+   "title": "Ирисы",
+   "author": "Винсент Ван Гог",
+   "year": "1890",
+   "kind": "classic",
+   "thumb": "data/thumbs/van-gogh-irises.jpg",
+   "credit": "Винсент Ван Гог. «Ирисы», 1890. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/436528",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 20,
+     "colors": 10
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 69,
+     "colors": 16
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 186,
+     "colors": 23
+    }
+   ]
+  },
+  {
+   "id": "monet-water-lily-pond-bridge",
+   "title": "Японский мостик",
+   "author": "Клод Моне",
+   "year": "1900",
+   "kind": "classic",
+   "thumb": "data/thumbs/monet-water-lily-pond-bridge.jpg",
+   "credit": "Клод Моне. «Пруд с кувшинками (японский мостик)», 1900. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/87088",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 29,
+     "colors": 10
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 99,
+     "colors": 18
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 288,
+     "colors": 28
+    }
+   ]
+  },
+  {
+   "id": "vermeer-young-woman-with-water-pitcher",
+   "title": "Девушка с кувшином",
+   "author": "Ян Вермеер",
+   "year": "ок. 1662",
+   "kind": "classic",
+   "thumb": "data/thumbs/vermeer-young-woman-with-water-pitcher.jpg",
+   "credit": "Ян (Йоханнес) Вермеер. «Молодая женщина с кувшином воды», ca. 1662. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/437881",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 40,
+     "colors": 13
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 97,
+     "colors": 20
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 191,
+     "colors": 27
+    }
+   ]
+  },
+  {
+   "id": "hiroshige-irises-at-horikiri",
+   "title": "Ирисы в Хорикири",
+   "author": "Утагава Хиросигэ",
+   "year": "1857",
+   "kind": "classic",
+   "thumb": "data/thumbs/hiroshige-irises-at-horikiri.jpg",
+   "credit": "Утагава Хиросигэ. «Ирисы в Хорикири (серия „Сто знаменитых видов Эдо“)», 1857. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/26611",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 40,
+     "colors": 11
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 83,
+     "colors": 15
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 165,
+     "colors": 23
+    }
+   ]
+  },
+  {
+   "id": "van-gogh-wheat-field-with-cypresses",
+   "title": "Пшеничное поле с кипарисами",
+   "author": "Винсент Ван Гог",
+   "year": "1889",
+   "kind": "classic",
+   "thumb": "data/thumbs/van-gogh-wheat-field-with-cypresses.jpg",
+   "credit": "Винсент Ван Гог. «Пшеничное поле с кипарисами», 1889. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/436535",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 44,
+     "colors": 13
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 104,
+     "colors": 19
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 228,
+     "colors": 27
+    }
+   ]
+  },
+  {
+   "id": "renoir-two-sisters",
+   "title": "Две сестры",
+   "author": "Пьер Огюст Ренуар",
+   "year": "1881",
+   "kind": "classic",
+   "thumb": "data/thumbs/renoir-two-sisters.jpg",
+   "credit": "Пьер Огюст Ренуар. «Две сестры (На террасе)», 1881. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/14655",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 63,
+     "colors": 14
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 116,
+     "colors": 20
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 335,
+     "colors": 28
+    }
+   ]
+  },
+  {
+   "id": "cezanne-apples-primroses",
+   "title": "Яблоки и примулы",
+   "author": "Поль Сезанн",
+   "year": "ок. 1890",
+   "kind": "classic",
+   "thumb": "data/thumbs/cezanne-apples-primroses.jpg",
+   "credit": "Поль Сезанн. «Натюрморт с яблоками и горшком примул», ca. 1890. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/435882",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 35,
+     "colors": 13
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 130,
+     "colors": 20
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 299,
+     "colors": 28
+    }
+   ]
+  },
+  {
+   "id": "caillebotte-chrysanthemums-garden",
+   "title": "Хризантемы в саду",
+   "author": "Гюстав Кайботт",
+   "year": "1893",
+   "kind": "classic",
+   "thumb": "data/thumbs/caillebotte-chrysanthemums-garden.jpg",
+   "credit": "Гюстав Кайботт. «Хризантемы в саду в Пти-Женвилье», 1893. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/671456",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 45,
+     "colors": 14
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 119,
+     "colors": 20
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 282,
+     "colors": 28
+    }
+   ]
+  },
+  {
+   "id": "mucha-zodiaque",
+   "title": "Зодиак",
+   "author": "Альфонс Муха",
+   "year": "1896–97",
+   "kind": "classic",
+   "thumb": "data/thumbs/mucha-zodiaque.jpg",
+   "credit": "Альфонс Муха. «Зодиак (для журнала „La Plume“)», 1896–97. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/111986",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 33,
+     "colors": 8
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 85,
+     "colors": 18
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 230,
+     "colors": 26
+    }
+   ]
+  }
+ ]
+}

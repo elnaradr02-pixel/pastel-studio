@@ -1,17 +1,35 @@
 // Сервис-воркер: держит всё приложение в кэше, чтобы оно открывалось без интернета.
 // При изменении любого файла приложения поднимайте VERSION — так iPad скачает новую версию.
-const VERSION = 'pastel-v1';
+const VERSION = 'pastel-v2';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest',
   'css/app.css', 'css/fonts.css',
   'js/app.js', 'js/db.js', 'js/ink.js', 'js/notebook.js', 'js/ui.js', 'js/icons.js', 'js/covers.js',
+  'js/shapes.js', 'js/stickers.js', 'js/coloring.js', 'js/pbn.js', 'data/catalog.json',
   'fonts/comfortaa-latin.woff2', 'fonts/comfortaa-latin-ext.woff2', 'fonts/comfortaa-cyrillic.woff2', 'fonts/comfortaa-cyrillic-ext.woff2',
   'fonts/nunito-latin.woff2', 'fonts/nunito-latin-ext.woff2', 'fonts/nunito-cyrillic.woff2', 'fonts/nunito-cyrillic-ext.woff2',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png',
 ];
 
+// Раскраски тоже скачиваются сразу (около 5 МБ), чтобы все картины открывались без интернета.
+async function libraryFiles() {
+  const res = await fetch('data/catalog.json', { cache: 'no-cache' });
+  const { pictures } = await res.json();
+  const files = [];
+  for (const p of pictures) {
+    files.push(p.thumb);
+    for (const l of p.levels) files.push(`data/${p.id}-${l.key}.json`, `data/${p.id}-${l.key}.bin`);
+  }
+  return files;
+}
+
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil((async () => {
+    const c = await caches.open(VERSION);
+    await c.addAll(ASSETS);
+    try { await c.addAll(await libraryFiles()); } catch { /* не страшно: картины докачаются при открытии */ }
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (e) => {
