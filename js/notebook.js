@@ -186,6 +186,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     history = [];
     future = [];
     pageEl.setAttribute('style', ink.paperCss(page.paper));
+    if (ink.isTemplate(page.paper)) { const pg = page; ink.ensurePaper(pg.paper).then(() => { if (pg === page) pageEl.setAttribute('style', ink.paperCss(pg.paper)); }); }
     renderInk();
     renderStickers();
     hideDetail();
@@ -564,10 +565,14 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   const touches = new Map();
   let gesture = null;
 
+  // время берём из меток самих событий (когда палец коснулся), а не из момента обработки:
+  // если приложение занято перерисовкой, быстрое касание двумя пальцами всё равно останется «быстрым»
+  let touchTs = 0;
+  const evTime = (e) => (e && e.timeStamp > 0 && Math.abs(e.timeStamp - performance.now()) < 10000 ? e.timeStamp : performance.now());
   function gestureStart() {
     const pts = [...touches.values()];
     const r = vp.getBoundingClientRect();
-    const t0 = performance.now();
+    const t0 = touchTs || performance.now();
     if (pts.length === 1) {
       gesture = { kind: 'one', sx: pts[0].x, sy: pts[0].y, tx: view.tx, ty: view.ty, t0, moved: false, fingers: 1 };
     } else {
@@ -610,7 +615,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   function gestureEnd(upPoint) {
     if (!gesture) return;
     const g = gesture;
-    const quick = performance.now() - g.t0 < 300;
+    const quick = ((upPoint && upPoint.t) || performance.now()) - g.t0 < 300;
     if (touches.size > 0) {
       // Пальцы отрываются не одновременно. Если это было касание двумя-тремя пальцами (отмена/повтор),
       // ждём, пока поднимутся все. Если был щипок — оставшийся палец продолжает сдвигать страницу.
@@ -660,6 +665,10 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
       const pg = page;
       for (const x of pending) fontTried.add(x.font);
       stk.loadFonts(pending).then(() => { if (pg === page && !stickOp) renderStickers(); });
+    }
+    if (page.stickers.some((x) => stk.isImage(x.key))) {
+      const pg = page;
+      stk.loadImages(pg.stickers).then((loaded) => { if (loaded && pg === page && !stickOp) renderStickers(); });
     }
   }
   const fontTried = new Set();
@@ -723,7 +732,16 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     scheduleDetail();
   }
   async function addSticker() {
-    const key = await dialog({ title: 'Стикеры', render: stk.pickerBody, actions: [{ label: 'Закрыть', value: null }] });
+    const key = await dialog({
+      title: 'Стикеры',
+      render: (body, close) => {
+        const photo = h('button', { class: 'btn btn-ghost photo-pick', type: 'button' }, `${icon('image')}<span>Фото или картинка</span>`);
+        photo.addEventListener('click', () => { pickPhoto(); close(null); }); // выбор файла — прямо в нажатии, иначе Safari не откроет
+        body.append(photo);
+        return stk.pickerBody(body, close);
+      },
+      actions: [{ label: 'Закрыть', value: null }],
+    });
     if (!key) return;
     const r = vp.getBoundingClientRect();
     const c = toPage(r.left + vp.clientWidth / 2, r.top + availH() / 2);
@@ -744,6 +762,49 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     future = [];
     updateUndo();
     scheduleSave();
+  }
+
+  // ---------- фото и картинки ----------
+  function pickPhoto() {
+    const input = h('input', { type: 'file', accept: 'image/*', style: 'position:fixed;left:-9999px;top:0;opacity:0' });
+    document.body.append(input);
+    input.addEventListener('change', async () => {
+      const file = input.files && input.files[0];
+      input.remove();
+      if (file) await addPhoto(file);
+    });
+    input.click();
+  }
+  async function addPhoto(file) {
+    let rec;
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      // на iPad фото по 12 Мп: ужимаем до 1600 точек по длинной стороне, чтобы блокнот не разбухал
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+      const g = c.getContext('2d');
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      const type = file.type === 'image/png' ? 'image/png' : 'image/jpeg'; // PNG — чтобы сохранить прозрачность вырезанных объектов
+      const blob = await new Promise((r) => c.toBlob(r, type, 0.86));
+      rec = { id: 'img-' + db.uid(), type: blob.type, buf: await blob.arrayBuffer(), w: c.width, h: c.height, createdAt: Date.now() };
+      await db.put('images', rec);
+    } catch (e) {
+      toast('Не получилось открыть картинку');
+      return;
+    }
+    const long = 520, kk = long / Math.max(rec.w, rec.h);
+    const r = vp.getBoundingClientRect();
+    const c = toPage(r.left + vp.clientWidth / 2, r.top + availH() / 2);
+    const st = { id: db.uid(), key: 'I', img: rec.id, iw: Math.round(rec.w * kk), ih: Math.round(rec.h * kk), x: Math.min(PAGE_W - 60, Math.max(60, c.x)), y: Math.min(PAGE_H - 60, Math.max(60, c.y)), s: Math.min(2.2, Math.max(0.3, 300 / view.s / long)), r: 0 };
+    await stk.loadImages([st]);
+    insertSticker(st);
+    toast('Тяните за середину, уголок — размер и поворот. Писать можно прямо поверх');
   }
 
   // ---------- текст с выбором шрифта ----------
@@ -876,7 +937,9 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
       e.preventDefault();
       touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
       capture(e.pointerId);
+      touchTs = evTime(e);
       gestureStart();
+      touchTs = 0;
     }
   }
   function onMove(e) {
@@ -900,7 +963,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     if (stickOp && e.pointerId === stickOp.pid) { endStickOp(); return; }
     if (touches.has(e.pointerId)) {
       touches.delete(e.pointerId);
-      gestureEnd({ x: e.clientX, y: e.clientY });
+      gestureEnd({ x: e.clientX, y: e.clientY, t: evTime(e) });
     }
   }
   vp.addEventListener('pointerdown', onDown);
@@ -985,6 +1048,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     c.width = PAGE_W * RS; c.height = PAGE_H * RS;
     const g = c.getContext('2d');
     g.setTransform(RS, 0, 0, RS, 0, 0);
+    await ink.ensurePaper(page.paper);
     ink.drawPaper(g, page.paper);
     await stk.drawStickers(g, page.stickers);
     g.setTransform(1, 0, 0, 1, 0, 0);

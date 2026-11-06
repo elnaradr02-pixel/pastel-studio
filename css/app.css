@@ -302,3 +302,16 @@ button:disabled { opacity: .35; cursor: default; }
 
 /* «Проверка фигур»: что видит приложение, для отладки на iPad */
 .shape-debug { position: absolute; left: 12px; top: 12px; z-index: 7; max-width: min(420px, calc(100% - 24px)); padding: 10px 12px; border-radius: 14px; background: rgba(255, 253, 250, .94); box-shadow: var(--shadow-sm); font: 12.5px/1.45 ui-monospace, Menlo, monospace; color: var(--ink); white-space: pre-wrap; pointer-events: none; }
+
+/* фото в блокноте */
+.sticker.photo img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 4px; -webkit-user-drag: none; user-select: none; pointer-events: none; }
+.sticker.photo.framed { background: #fff; border-radius: 8px; box-shadow: 0 0 0 10px #fff; }
+.sticker.photo .photo-wait { display: block; width: 100%; height: 100%; border-radius: 6px; background: var(--rose-soft, #F8E3E8); }
+.photo-pick { display: flex; align-items: center; gap: 10px; width: 100%; justify-content: center; margin-bottom: 6px; }
+
+/* напоминание о резервной копии */
+.backup-note { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; align-items: start; margin: 0 0 18px; padding: 16px 18px; border-radius: 22px; background: var(--surface); box-shadow: var(--shadow-sm); border: 1.5px solid rgba(169, 86, 111, .18); }
+.backup-ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--rose-soft, #F8E3E8); color: var(--rose-deep); }
+.backup-text { display: flex; flex-direction: column; gap: 4px; font-size: 15px; line-height: 1.4; color: var(--ink-soft); }
+.backup-text b { color: var(--ink); font-size: 16px; }
+.backup-actions { grid-column: 2; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }

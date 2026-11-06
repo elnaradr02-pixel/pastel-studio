@@ -8,8 +8,8 @@ import { openNotebook, blankPage } from './notebook.js';
 import { openColoring } from './coloring.js';
 import { buildFromImage, encodeMap } from './pbn.js';
 
-// номер версии совпадает с VERSION в sw.js (pastel-v6); виден на главном экране — так легко проверить, что iPad обновился
-export const APP_VERSION = 6;
+// номер версии совпадает с VERSION в sw.js (pastel-v7); виден на главном экране — так легко проверить, что iPad обновился
+export const APP_VERSION = 7;
 const root = document.getElementById('app');
 const settings = { fingerDraw: false, hasPressure: false, version: APP_VERSION };
 let cleanup = null;
@@ -30,6 +30,7 @@ async function boot() {
   });
   settings.shapeDebug = await db.getMeta('shapeDebug', false);
   route();
+  setTimeout(() => cleanImages().catch(() => {}), 4000);
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
     const hadController = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -105,7 +106,10 @@ async function renderHome(tab = 'notebooks') {
     card.append(open, meta);
     grid.append(card);
   }
-  screen.append(head, tabs, grid);
+  const reminder = await backupReminder(notebooks);
+  screen.append(head, tabs);
+  if (reminder) screen.append(reminder);
+  screen.append(grid);
   screen.append(h('p', { class: 'home-version' }, `Пастель · версия ${APP_VERSION}`));
   if (!notebooks.length) {
     screen.append(h('p', { class: 'home-empty' }, 'Здесь будут ваши блокноты. Создайте первый — выберите обложку и бумагу.'));
@@ -295,6 +299,7 @@ function notebookForm(initial) {
 
 async function createNotebook() {
   const count = (await db.getAll('notebooks')).length;
+  await ink.ensureAllPapers(); // образцы шаблонов в выборе бумаги
   const res = await dialog({
     title: 'Новый блокнот',
     render: notebookForm({ title: `Блокнот ${count + 1}`, cover: COVER_KEYS[count % COVER_KEYS.length], paper: 'dots', withPaper: true }),
@@ -338,21 +343,76 @@ async function editNotebook(nb) {
   renderHome();
 }
 
+// ---------- напоминание о резервной копии ----------
+// Safari может удалить данные сайта, если им долго не пользоваться. Раз в месяц мягко напоминаем сохранить копию в «Файлы».
+const DAY = 24 * 3600 * 1000;
+async function backupReminder(notebooks) {
+  if (!notebooks.length) return null;
+  const now = Date.now();
+  let first = await db.getMeta('firstUse', 0);
+  if (!first) { first = now; await db.setMeta('firstUse', now); }
+  const last = await db.getMeta('lastBackup', 0);
+  const snooze = await db.getMeta('backupSnooze', 0);
+  const since = last || first;
+  if (now - since < 30 * DAY || now < snooze) return null;
+  const days = Math.floor((now - since) / DAY);
+  const card = h('div', { class: 'backup-note', role: 'status' }, `
+    <span class="backup-ic">${icon('shield', 22)}</span>
+    <div class="backup-text"><b>${last ? `Последняя резервная копия — ${days} дн. назад` : 'Резервной копии ещё не было'}</b>
+    <span>Safari иногда удаляет данные сайтов. Сохраните копию всех блокнотов в «Файлы» — это минута.</span></div>`);
+  const actions = h('div', { class: 'backup-actions' });
+  const save = h('button', { class: 'btn btn-primary', type: 'button' }, 'Сохранить копию');
+  save.addEventListener('click', () => exportBackup(null));
+  const later = h('button', { class: 'btn btn-ghost', type: 'button' }, 'Позже');
+  later.addEventListener('click', async () => { await db.setMeta('backupSnooze', Date.now() + 7 * DAY); card.remove(); });
+  actions.append(save, later);
+  card.append(actions);
+  return card;
+}
+
+// фото, на которые больше не ссылается ни одна страница, удаляем (не раньше чем через 2 дня — чтобы работала отмена)
+async function cleanImages() {
+  const used = new Set();
+  for (const p of await db.getAll('pages')) for (const st of p.stickers || []) if (st.key === 'I') used.add(st.img);
+  for (const im of await db.getAll('images')) if (!used.has(im.id) && Date.now() - (im.createdAt || 0) > 2 * DAY) await db.del('images', im.id);
+}
+
 // ---------- резервная копия ----------
 // Файл .json со всеми штрихами. Его можно сохранить в «Файлы» и вернуть, если Safari что-то сотрёт.
 async function exportBackup(ids) {
   const all = await db.getAll('notebooks');
   const list = ids ? all.filter((n) => ids.includes(n.id)) : all;
-  const out = { app: 'pastel-studio', version: 1, savedAt: new Date().toISOString(), notebooks: [] };
+  const out = { app: 'pastel-studio', version: 2, savedAt: new Date().toISOString(), notebooks: [], images: [] };
+  const imgIds = new Set();
   for (const nb of list) {
     const pages = await db.pagesOf(nb.id);
+    for (const p of pages) for (const st of p.stickers || []) if (st.key === 'I') imgIds.add(st.img);
     out.notebooks.push({ ...nb, pages: pages.map((p) => ({ ...p, strokes: p.strokes.map((s) => ({ ...s, pts: Array.from(s.pts, (v) => Math.round(v * 10) / 10) })) })) });
+  }
+  // фото из блокнотов едут внутри файла, иначе после восстановления на их месте будет пусто
+  for (const id of imgIds) {
+    const rec = await db.get('images', id);
+    if (rec) out.images.push({ id: rec.id, type: rec.type, w: rec.w, h: rec.h, data: toBase64(rec.buf) });
   }
   const blob = new Blob([JSON.stringify(out)], { type: 'application/json' });
   const date = new Date().toISOString().slice(0, 10);
   const name = ids && list.length === 1 ? `${list[0].title} — копия ${date}.json` : `Пастель — все блокноты ${date}.json`;
   const how = await saveFile(blob, name);
+  if (how === 'cancelled') return;
+  if (!ids || list.length === all.length) await db.setMeta('lastBackup', Date.now());
   if (how === 'downloaded') toast('Резервная копия сохранена');
+  if (location.hash === '' || location.hash === '#/') renderHome();
+}
+function toBase64(buf) {
+  const u = new Uint8Array(buf);
+  let s = '';
+  for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function fromBase64(b64) {
+  const s = atob(b64), u = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+  return u.buffer;
 }
 
 function importBackup() {
@@ -364,13 +424,17 @@ function importBackup() {
       const data = JSON.parse(await file.text());
       if (data.app !== 'pastel-studio' || !Array.isArray(data.notebooks)) throw new Error('это не резервная копия Пастели');
       let n = 0;
+      for (const im of data.images || []) {
+        if (!im || !im.id || !im.data || (await db.get('images', im.id))) continue;
+        await db.put('images', { id: im.id, type: im.type || 'image/jpeg', w: im.w, h: im.h, buf: fromBase64(im.data), createdAt: Date.now() });
+      }
       for (const nb of data.notebooks) {
         const newId = db.uid();
         const pageIds = [];
         for (const p of nb.pages || []) {
           const pid = db.uid();
           pageIds.push(pid);
-          await db.put('pages', { id: pid, notebookId: newId, paper: p.paper || 'blank', updatedAt: Date.now(), strokes: (p.strokes || []).map((s) => ({ ...s, pts: Float32Array.from(s.pts || []) })) });
+          await db.put('pages', { id: pid, notebookId: newId, paper: p.paper || 'blank', updatedAt: Date.now(), strokes: (p.strokes || []).map((s) => ({ ...s, pts: Float32Array.from(s.pts || []) })), stickers: Array.isArray(p.stickers) ? p.stickers : [] });
         }
         const { pages, ...rest } = nb;
         await db.put('notebooks', { ...rest, id: newId, pageIds, lastPage: 0, updatedAt: Date.now() });

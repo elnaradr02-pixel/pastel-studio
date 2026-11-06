@@ -209,19 +209,123 @@ export const PAPERS = {
   grid: 'Клетка',
   dots: 'Точки',
   lines: 'Линейка',
+  week: 'Неделя',
+  todo: 'Список дел',
+  habits: 'Привычки',
+  cornell: 'Корнелл',
 };
+// шаблоны с надписями рисуются один раз на холсте и дальше служат фоном страницы
+export const TEMPLATES = ['week', 'todo', 'habits', 'cornell'];
+export function isTemplate(type) { return TEMPLATES.includes(type); }
 export const PAPER_BG = '#FFFBF6';
 const GRID = 50;
 const LINE_GAP = 56;
 const LINE_TOP = 168;
 const MARGIN_X = 112;
 
+// ---------- шаблоны страниц ----------
+const T_LINE = 'rgba(176,128,140,0.30)';
+const T_BOX = 'rgba(176,128,140,0.45)';
+const T_HEAD = '#A9566F';
+const T_LABEL = '#8C7B80';
+const TPL_SCALE = 2;
+const tplCache = new Map();
+
+function tplTitle(g, text, right) {
+  g.fillStyle = T_HEAD; g.font = '700 54px Comfortaa, Nunito, sans-serif'; g.textBaseline = 'alphabetic';
+  g.fillText(text, 80, 128);
+  if (right) {
+    g.fillStyle = T_LABEL; g.font = '700 26px Nunito, sans-serif';
+    const w = g.measureText(right).width;
+    g.fillText(right, 760 - w - 14, 124);
+    g.strokeStyle = T_BOX; g.lineWidth = 2; g.beginPath(); g.moveTo(760, 128); g.lineTo(1120, 128); g.stroke();
+  }
+}
+function tplBox(g, x, y, w, hh, label, lines = 0, gap = 54, top = 74) {
+  g.strokeStyle = T_BOX; g.lineWidth = 2.4; g.beginPath(); g.roundRect(x, y, w, hh, 22); g.stroke();
+  if (label) { g.fillStyle = T_HEAD; g.font = '800 26px Nunito, sans-serif'; g.textBaseline = 'alphabetic'; g.fillText(label, x + 24, y + 44); }
+  if (lines) {
+    g.strokeStyle = T_LINE; g.lineWidth = 1.6; g.beginPath();
+    for (let yy = y + top; yy < y + hh - 18; yy += gap) { g.moveTo(x + 22, yy); g.lineTo(x + w - 22, yy); }
+    g.stroke();
+  }
+}
+const TPL_DRAW = {
+  week(g) {
+    tplTitle(g, 'Неделя', 'даты');
+    const days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье', 'Заметки'];
+    const x0 = 70, y0 = 180, cw = 520, gx = 20, ch = 320, gy = 20;
+    days.forEach((d, i) => tplBox(g, x0 + (i % 2) * (cw + gx), y0 + Math.floor(i / 2) * (ch + gy), cw, ch, d, 1, 52, 96));
+  },
+  todo(g) {
+    tplTitle(g, 'Список дел', 'дата');
+    tplBox(g, 70, 180, 1060, 250, 'Главное на сегодня');
+    g.strokeStyle = T_LINE; g.lineWidth = 1.6;
+    for (let i = 0; i < 3; i++) {
+      const y = 262 + i * 56;
+      g.fillStyle = T_HEAD; g.font = '800 24px Nunito, sans-serif'; g.fillText(String(i + 1), 100, y + 4);
+      g.beginPath(); g.moveTo(132, y + 10); g.lineTo(1100, y + 10); g.stroke();
+    }
+    g.fillStyle = T_HEAD; g.font = '800 26px Nunito, sans-serif'; g.fillText('Дела', 94, 500);
+    for (let y = 560; y < 1540; y += 62) {
+      g.strokeStyle = T_BOX; g.lineWidth = 2.2; g.beginPath(); g.roundRect(92, y - 34, 30, 30, 8); g.stroke();
+      g.strokeStyle = T_LINE; g.lineWidth = 1.6; g.beginPath(); g.moveTo(140, y); g.lineTo(1110, y); g.stroke();
+    }
+  },
+  habits(g) {
+    tplTitle(g, 'Привычки', 'месяц');
+    const x0 = 70, nameW = 300, x1 = 1130, y0 = 190, rows = 14, rh = 70;
+    const dw = (x1 - x0 - nameW) / 31;
+    g.fillStyle = T_LABEL; g.font = '700 17px Nunito, sans-serif'; g.textAlign = 'center';
+    for (let d = 1; d <= 31; d++) g.fillText(String(d), x0 + nameW + dw * (d - 0.5), y0 + 40);
+    g.textAlign = 'left';
+    g.fillStyle = T_HEAD; g.font = '800 24px Nunito, sans-serif'; g.fillText('Привычка', x0 + 20, y0 + 42);
+    const top = y0 + 60, bottom = top + rows * rh;
+    g.strokeStyle = T_BOX; g.lineWidth = 2.4; g.beginPath(); g.roundRect(x0, y0, x1 - x0, bottom - y0, 22); g.stroke();
+    g.strokeStyle = T_LINE; g.lineWidth = 1.4; g.beginPath();
+    for (let r = 0; r <= rows; r++) { g.moveTo(x0, top + r * rh); g.lineTo(x1, top + r * rh); }
+    for (let d = 0; d < 31; d++) { const x = x0 + nameW + dw * d; g.moveTo(x, y0 + 8); g.lineTo(x, bottom); }
+    g.stroke();
+    tplBox(g, x0, bottom + 40, x1 - x0, 1540 - bottom - 40, 'Заметки месяца', 1, 54, 96);
+  },
+  cornell(g) {
+    g.fillStyle = T_LABEL; g.font = '700 26px Nunito, sans-serif'; g.textBaseline = 'alphabetic';
+    g.fillText('Тема', 80, 110); g.fillText('Дата', 820, 110);
+    g.strokeStyle = T_BOX; g.lineWidth = 2; g.beginPath(); g.moveTo(160, 114); g.lineTo(780, 114); g.moveTo(896, 114); g.lineTo(1120, 114); g.stroke();
+    const top = 170, split = 380, bottom = 1250;
+    g.strokeStyle = T_BOX; g.lineWidth = 2.4; g.beginPath(); g.roundRect(70, top, 1060, bottom - top, 22); g.moveTo(split, top); g.lineTo(split, bottom); g.stroke();
+    g.fillStyle = T_HEAD; g.font = '800 24px Nunito, sans-serif';
+    g.fillText('Вопросы, слова', 92, top + 44); g.fillText('Конспект', split + 24, top + 44);
+    g.strokeStyle = T_LINE; g.lineWidth = 1.6; g.beginPath();
+    for (let y = top + 96; y < bottom - 16; y += 54) { g.moveTo(92, y); g.lineTo(split - 20, y); g.moveTo(split + 22, y); g.lineTo(1108, y); }
+    g.stroke();
+    tplBox(g, 70, bottom + 30, 1060, 1540 - bottom - 30, 'Итог', 1, 54, 96);
+  },
+};
+// нарисовать шаблон (один раз): ждём шрифты, иначе надписи выйдут запасным шрифтом
+export async function ensurePaper(type) {
+  if (!isTemplate(type) || tplCache.has(type)) return;
+  try { await Promise.all([document.fonts.load('700 54px Comfortaa', 'Неделя Aa'), document.fonts.load('800 26px Nunito', 'Понедельник 123'), document.fonts.load('700 26px Nunito', 'дата 123')]); } catch { /* запасной шрифт */ }
+  if (tplCache.has(type)) return;
+  const c = document.createElement('canvas');
+  c.width = PAGE_W * TPL_SCALE; c.height = PAGE_H * TPL_SCALE;
+  const g = c.getContext('2d');
+  g.scale(TPL_SCALE, TPL_SCALE);
+  g.fillStyle = PAPER_BG; g.fillRect(0, 0, PAGE_W, PAGE_H);
+  TPL_DRAW[type](g);
+  tplCache.set(type, { canvas: c, url: c.toDataURL('image/png') });
+}
+export function ensureAllPapers() { return Promise.all(TEMPLATES.map(ensurePaper)); }
+
 // Бумага для экспорта и для чёткой отрисовки при увеличении.
 export function drawPaper(ctx, type, x0 = 0, y0 = 0, x1 = PAGE_W, y1 = PAGE_H) {
   ctx.save();
   ctx.fillStyle = PAPER_BG;
   ctx.fillRect(0, 0, PAGE_W, PAGE_H);
-  if (type === 'grid') {
+  if (isTemplate(type)) {
+    const t = tplCache.get(type);
+    if (t) ctx.drawImage(t.canvas, 0, 0, PAGE_W, PAGE_H);
+  } else if (type === 'grid') {
     ctx.strokeStyle = 'rgba(176,128,140,0.22)';
     ctx.lineWidth = 1.4;
     ctx.beginPath();
@@ -253,6 +357,10 @@ export function drawPaper(ctx, type, x0 = 0, y0 = 0, x1 = PAGE_W, y1 = PAGE_H) {
 // Та же бумага как CSS-фон. k — масштаб: 1 для страницы (элемент PAGE_W×PAGE_H), меньше — для маленьких образцов.
 export function paperCss(type, k = 1) {
   const base = `background-color:${PAPER_BG};`;
+  if (isTemplate(type)) {
+    const t = tplCache.get(type);
+    return t ? base + `background-image:url(${t.url});background-size:100% 100%;background-repeat:no-repeat;` : base;
+  }
   const px = (v) => +(v * k).toFixed(2);
   const lw = (v) => Math.max(1, px(v));
   if (type === 'grid') {

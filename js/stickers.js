@@ -1,5 +1,6 @@
 // Стикеры для блокнота: милые и «для конспекта». Все нарисованы здесь (SVG и CSS), поэтому работают офлайн.
 // Стикер на странице: { id, key, x, y (центр), s (масштаб), r (поворот, радианы), text? }.
+import * as db from './db.js';
 import { h, esc } from './ui.js';
 
 const W = '#FFFFFF';
@@ -58,6 +59,25 @@ export function stickerName(key) { return isLabel(key) ? `Метка «${labelDe
 
 export function isLabel(key) { return key.startsWith('L:'); }
 export function isText(key) { return key === 'T'; }
+export function isImage(key) { return key === 'I'; }
+
+// ---------- фото и картинки ----------
+// Сами картинки лежат в хранилище «images» (на iPad, никуда не отправляются); в стикере — только ссылка st.img.
+const imgUrls = new Map();     // id → blob: URL
+const imgFrames = new Map();   // id → рамка-«полароид» для фото (у PNG с прозрачностью рамки нет)
+export async function loadImages(stickers) {
+  let loaded = false;
+  for (const st of stickers) {
+    if (!isImage(st.key) || imgUrls.has(st.img)) continue;
+    const rec = await db.get('images', st.img).catch(() => null);
+    if (!rec) continue;
+    imgUrls.set(st.img, URL.createObjectURL(new Blob([rec.buf], { type: rec.type })));
+    imgFrames.set(st.img, rec.type !== 'image/png');
+    loaded = true;
+  }
+  return loaded;
+}
+export const IMG_PAD = 10; // ширина белой рамки фото в единицах страницы
 export function hasEditableText(key) { return isLabel(key) || isText(key); }
 
 // ---------- текст с выбором шрифта ----------
@@ -106,6 +126,7 @@ export async function loadFonts(stickers) {
 // размер стикера в единицах страницы при масштабе 1
 export function baseSize(st) {
   if (isText(st.key)) { const b = textBox(st); return { w: b.w, h: b.h }; }
+  if (isImage(st.key)) return { w: st.iw, h: st.ih };
   if (isLabel(st.key)) {
     const d = labelDefs[st.key.slice(2)];
     const text = st.text ?? d.text;
@@ -133,7 +154,12 @@ export function renderSticker(st) {
   const el = h('div', { class: 'sticker', 'data-id': st.id });
   el.style.width = w + 'px';
   el.style.height = hh + 'px';
-  if (isText(st.key)) {
+  if (isImage(st.key)) {
+    el.classList.add('photo');
+    if (imgFrames.get(st.img) !== false) el.classList.add('framed');
+    const url = imgUrls.get(st.img);
+    el.innerHTML = url ? `<img src="${url}" alt="" draggable="false">` : '<span class="photo-wait"></span>';
+  } else if (isText(st.key)) {
     const b = textBox(st);
     el.classList.add('textblock');
     el.style.font = fontCss(b.f, b.px);
@@ -195,11 +221,29 @@ export async function drawStickers(ctx, stickers) {
     ctx.translate(st.x, st.y);
     ctx.rotate(st.r);
     ctx.scale(st.s, st.s);
-    if (isText(st.key)) await drawText(ctx, st, w, hh);
+    if (isImage(st.key)) await drawPhoto(ctx, st, w, hh);
+    else if (isText(st.key)) await drawText(ctx, st, w, hh);
     else if (isLabel(st.key)) drawLabel(ctx, labelInfo(st), w, hh);
     else { try { ctx.drawImage(await svgImage(st.key), -w / 2, -hh / 2, w, hh); } catch { /* картинка не загрузилась — пропускаем */ } }
     ctx.restore();
   }
+}
+
+async function drawPhoto(ctx, st, w, hh) {
+  await loadImages([st]);
+  const url = imgUrls.get(st.img);
+  if (!url) return;
+  const img = new Image();
+  img.src = url;
+  try { await img.decode(); } catch { return; }
+  if (imgFrames.get(st.img)) {
+    ctx.save();
+    ctx.shadowColor = 'rgba(122,78,90,.18)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 3;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.roundRect(-w / 2 - IMG_PAD, -hh / 2 - IMG_PAD, w + IMG_PAD * 2, hh + IMG_PAD * 2, 8); ctx.fill();
+    ctx.restore();
+  }
+  ctx.drawImage(img, -w / 2, -hh / 2, w, hh);
 }
 
 async function drawText(ctx, st, w, hh) {
