@@ -13,7 +13,7 @@ const only = process.argv[3]
   await page.goto('http://127.0.0.1:8790/tools/build.html'); await page.waitForFunction(() => window.ready)
   const catalog = []
   for (const p of spec.pictures) {
-    const entry = { id: p.id, title: p.title, author: p.author || '', year: p.year || '', kind: p.kind, thumb: `data/thumbs/${p.id}.jpg`, credit: p.credit || '', levels: [] }
+    const entry = { id: p.id, title: p.title, author: p.author || '', year: p.year || '', kind: p.kind, thumb: `data/thumbs/${p.id}.jpg`, credit: p.credit || '', searchExtra: p.searchExtra || '', levels: [] }
     for (const lv of p.levels) {
       if (only && only !== p.id) { if (p.cached) entry.levels.push(p.cached[lv.key]); continue }
       const job = { kind: p.kind, longSide: lv.longSide, opts: lv.opts }

@@ -2,7 +2,7 @@
 // localStorage не подходит: в Safari он маленький, а штрихи страниц весят много.
 
 const DB_NAME = 'pastel-studio';
-const DB_VERSION = 2; // 2: раскраски (прогресс по картинкам)
+const DB_VERSION = 3; // 2: раскраски (прогресс), 3: свои картинки
 let dbPromise = null;
 
 function openDb() {
@@ -18,6 +18,7 @@ function openDb() {
       }
       if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
       if (!db.objectStoreNames.contains('coloring')) db.createObjectStore('coloring', { keyPath: 'key' });
+      if (!db.objectStoreNames.contains('userpics')) db.createObjectStore('userpics', { keyPath: 'id' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);

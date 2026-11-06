@@ -235,6 +235,8 @@ button:disabled { opacity: .35; cursor: default; }
 .cl-pic { position: relative; background: #FFFBF6; border-radius: 10px; box-shadow: 0 30px 80px rgba(122, 78, 90, .16), 0 0 0 1px rgba(122, 78, 90, .06); overflow: hidden; }
 .cl-layer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
 .cl-hint { animation: hintPulse 1.6s ease-in-out infinite; }
+.cl-live { mix-blend-mode: multiply; }
+.cl-paper { background-repeat: repeat; background-size: 256px 256px; mix-blend-mode: multiply; opacity: .55; pointer-events: none; }
 @keyframes hintPulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 .cl-numbers { position: absolute; left: 0; top: 0; pointer-events: none; }
 .progress-pill .page-label { min-width: 58px; padding: 0 8px; line-height: 44px; }
@@ -261,6 +263,14 @@ button:disabled { opacity: .35; cursor: default; }
 .pic-bar i { display: block; height: 100%; background: var(--rose-deep); border-radius: 6px; }
 .pic-title { font-family: var(--font-title); font-weight: 700; font-size: 16px; line-height: 1.25; }
 .pic-author { color: var(--ink-soft); font-size: 14px; margin-top: -4px; }
+.field.search { max-width: 520px; margin-bottom: 20px; padding-left: 44px; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%237C6B71' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='M16 16l4.5 4.5'/%3E%3C/svg%3E") no-repeat 14px 50%; }
+.pic-badge.own { background: #FBE3E8; }
+.pic-card[hidden] { display: none; }
+.level-pick { display: flex; gap: 8px; flex-wrap: wrap; }
+.level-opt { box-shadow: 0 0 0 1.5px var(--line); }
+.level-opt.on { background: #FBE3E8; color: var(--rose-deep); box-shadow: 0 0 0 2px var(--rose); }
+.busy { align-items: center; z-index: 70; }
+.busy-card { background: var(--surface); padding: 22px 30px; border-radius: 22px; font-family: var(--font-title); font-weight: 700; font-size: 18px; box-shadow: var(--shadow); }
 .section-note { color: var(--ink-soft); font-size: 15px; margin: 4px 0 18px; max-width: 640px; line-height: 1.5; }
 
 @media (prefers-reduced-motion: reduce) {

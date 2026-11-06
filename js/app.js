@@ -6,6 +6,7 @@ import { icon } from './icons.js';
 import { h, esc, toast, sheet, dialog, confirmDialog, saveFile } from './ui.js';
 import { openNotebook, blankPage } from './notebook.js';
 import { openColoring } from './coloring.js';
+import { buildFromImage, encodeMap } from './pbn.js';
 
 const root = document.getElementById('app');
 const settings = { fingerDraw: false, hasPressure: false };
@@ -16,6 +17,7 @@ async function boot() {
   settings.hasPressure = await db.getMeta('hasPressure', false);
   settings.brushPt = await db.getMeta('brushPt', 26);
   settings.shapes = await db.getMeta('shapes', true);
+  settings.colorBrush = await db.getMeta('colorBrush', 'water');
   window.addEventListener('hashchange', route);
   // первое касание — просим постоянное хранилище (Safari решает сам, чаще соглашается для приложения с экрана «Домой»)
   window.addEventListener('pointerdown', async function once() {
@@ -36,7 +38,8 @@ async function route() {
     cleanup = await openNotebook(root, m[1], { onBack: () => { location.hash = '#/'; }, settings });
   } else if (c) {
     const cat = await catalog();
-    const info = cat.find((p) => p.id === c[1]) || { title: 'Раскраска' };
+    const own = c[1].startsWith('u-') ? await db.get('userpics', c[1]) : null;
+    const info = own ? { title: own.title } : cat.find((p) => p.id === c[1]) || { title: 'Раскраска' };
     cleanup = await openColoring(root, { id: c[1], level: c[2], info }, { onBack: () => { location.hash = '#/colors'; }, settings });
   } else {
     await renderHome(location.hash.startsWith('#/colors') ? 'colors' : 'notebooks');
@@ -103,15 +106,104 @@ async function catalog() {
   return catalogCache;
 }
 
+const LEVELS = {
+  easy: { label: 'Лёгкая', opts: { longSide: 1000, colors: 14, minArea: 2200, minR: 13, blur: 3, mode: 3 } },
+  mid: { label: 'Средняя', opts: { longSide: 1200, colors: 20, minArea: 900, minR: 10, blur: 2, mode: 2 } },
+  hard: { label: 'Сложная', opts: { longSide: 1400, colors: 28, minArea: 380, minR: 7.5, blur: 1.5, mode: 2 } },
+};
+
+// Своя картинка → раскраска прямо на iPad. Ничего никуда не отправляется: всё остаётся в хранилище браузера.
+function addOwnPicture() {
+  const input = h('input', { type: 'file', accept: 'image/*' });
+  input.addEventListener('change', async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const count = (await db.getAll('userpics')).length;
+    const res = await dialog({
+      title: 'Своя раскраска',
+      render: (body) => {
+        const state = { title: `Моя картинка ${count + 1}`, level: 'mid' };
+        const name = h('input', { class: 'field', type: 'text', maxlength: 40, value: state.title, 'aria-label': 'Название' });
+        name.addEventListener('input', () => { state.title = name.value; });
+        body.append(h('p', { class: 'dialog-text' }, 'Картинка превратится в раскраску прямо на этом iPad и останется только здесь.'), h('label', { class: 'field-label' }, 'Название'), name, h('div', { class: 'field-label' }, 'Сложность'));
+        const row = h('div', { class: 'level-pick', role: 'radiogroup' });
+        for (const [k, l] of Object.entries(LEVELS)) {
+          const b = h('button', { class: 'chip-btn level-opt', type: 'button', role: 'radio' }, esc(l.label));
+          b.addEventListener('click', () => { state.level = k; row.querySelectorAll('.level-opt').forEach((x) => x.classList.toggle('on', x === b)); });
+          if (k === state.level) b.classList.add('on');
+          row.append(b);
+        }
+        body.append(row);
+        return { value: () => state };
+      },
+      actions: [{ label: 'Отмена', value: null }, { label: 'Сделать раскраску', primary: true }],
+    });
+    if (!res) return;
+    const wait = h('div', { class: 'scrim open busy' }, '<div class="busy-card">Раскладываю краски…</div>');
+    document.body.append(wait);
+    await new Promise((r) => setTimeout(r, 60)); // дать экрану показать «ждите»
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const pic = buildFromImage(img, LEVELS[res.level].opts);
+      const t = document.createElement('canvas');
+      const k = 520 / Math.max(img.naturalWidth, img.naturalHeight);
+      t.width = Math.round(img.naturalWidth * k); t.height = Math.round(img.naturalHeight * k);
+      t.getContext('2d').drawImage(img, 0, 0, t.width, t.height);
+      URL.revokeObjectURL(url);
+      const thumb = await new Promise((r) => t.toBlob(r, 'image/jpeg', 0.85));
+      const id = 'u-' + db.uid();
+      await db.put('userpics', {
+        id, title: (res.title || '').trim() || 'Моя картинка', level: res.level, createdAt: Date.now(),
+        w: pic.w, h: pic.h, palette: pic.palette, regions: pic.regions, rle: encodeMap(pic.map).buffer, thumb: await thumb.arrayBuffer(),
+      });
+      wait.remove();
+      location.hash = `#/color/${id}/${res.level}`;
+    } catch (e) {
+      wait.remove();
+      toast('Не получилось: ' + (e && e.message ? e.message : 'картинка не открылась'));
+    }
+  });
+  input.click();
+}
+
 async function renderGallery(screen, tabs) {
   const pics = await catalog();
+  const own = (await db.getAll('userpics')).sort((a, b) => b.createdAt - a.createdAt);
   const progress = new Map((await db.getAll('coloring')).map((r) => [r.key, r]));
   const head = h('header', { class: 'home-head' }, `
     <div>
       <div class="home-hello">раскрашиваем по номерам</div>
       <h1 class="home-title">Раскраски</h1>
     </div>`);
+  const btnOwn = h('button', { class: 'chip-btn', type: 'button' }, `${icon('plus')}<span>Своя картинка</span>`);
+  btnOwn.addEventListener('click', addOwnPicture);
+  head.append(btnOwn);
+  const search = h('input', { class: 'field search', type: 'search', placeholder: 'Найти: звёздная ночь, Ван Гог, кот…', 'aria-label': 'Поиск раскраски' });
   const grid = h('div', { class: 'pic-grid' });
+  const cards = [];
+  for (const u of own) {
+    const pr = progress.get(`${u.id}:${u.level}`);
+    const pct = pr ? Math.floor((pr.done / pr.total) * 100) : 0;
+    const thumbUrl = URL.createObjectURL(new Blob([u.thumb], { type: 'image/jpeg' }));
+    const card = h('button', { class: 'pic-card', type: 'button', 'aria-label': `${u.title}, своя картинка${pct ? `, раскрашено ${pct}%` : ''}` },
+      `<span class="pic-thumb"><img src="${thumbUrl}" alt=""><span class="pic-badge own">моя</span>${pct ? `<span class="pic-bar"><i style="width:${pct}%"></i></span>` : ''}</span>
+       <span class="pic-title">${esc(u.title)}</span><span class="pic-author">${esc(LEVELS[u.level] ? LEVELS[u.level].label : '')} · ${u.regions.length} областей</span>`);
+    card.addEventListener('click', () => sheet({
+      title: u.title,
+      items: [
+        { label: 'Раскрашивать', icon: 'palette', onClick: () => { location.hash = `#/color/${u.id}/${u.level}`; } },
+        { label: 'Удалить картинку', icon: 'trash', danger: true, onClick: async () => {
+          if (!(await confirmDialog('Удалить картинку?', `«${u.title}» и её раскраска исчезнут с этого iPad.`))) return;
+          await db.del('userpics', u.id); await db.del('coloring', `${u.id}:${u.level}`); renderHome('colors');
+        } },
+      ],
+    }));
+    cards.push([card, `${u.title} моя своя`.toLowerCase()]);
+    grid.append(card);
+  }
   for (const p of pics) {
     const best = p.levels.map((l) => progress.get(`${p.id}:${l.key}`)).filter(Boolean).sort((a, b) => b.updatedAt - a.updatedAt)[0];
     const pct = best ? Math.floor((best.done / best.total) * 100) : 0;
@@ -129,9 +221,17 @@ async function renderGallery(screen, tabs) {
         }),
       });
     });
+    cards.push([card, `${p.title} ${p.author} ${p.year} ${p.searchExtra || ''}`.toLowerCase().replace(/ё/g, 'е')]);
     grid.append(card);
   }
-  screen.append(head, tabs, h('p', { class: 'section-note' }, 'Выберите номер внизу и водите карандашом свободно: краска ложится только в области этого номера. Когда область закрашена почти целиком, цифра исчезает.'), grid);
+  const empty = h('p', { class: 'home-empty', hidden: true }, 'Ничего не нашлось. Можно добавить свою картинку кнопкой вверху.');
+  search.addEventListener('input', () => {
+    const q = search.value.trim().toLowerCase().replace(/ё/g, 'е');
+    let shown = 0;
+    for (const [card, text] of cards) { const on = !q || q.split(/\s+/).every((w) => text.includes(w)); card.hidden = !on; shown += on; }
+    empty.hidden = shown > 0;
+  });
+  screen.append(head, tabs, h('p', { class: 'section-note' }, 'Выберите номер внизу и водите карандашом свободно: краска ложится только в области этого номера. Когда область закрашена почти целиком, цифра исчезает.'), search, grid, empty);
   if (!pics.length) screen.append(h('p', { class: 'home-empty' }, 'Раскраски не загрузились. Проверьте интернет и откройте ещё раз.'));
   root.append(screen);
 }

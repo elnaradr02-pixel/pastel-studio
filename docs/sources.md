@@ -81,3 +81,12 @@
 - `sources.json` содержит те же данные и служебные поля: SHA-256 файлов, исходные размеры, откуда взят год смерти, credit line.
 - Для AIC рядом лежит запись о художнике (`<id>.artist.json`) с полем `death_date`.
 - Флаг музея относится к самой работе. Это не юридическое заключение. Условия музеев: Met — https://metmuseum.github.io/ , AIC — https://api.artic.edu/docs/ .
+
+## Добавлено 6 ноября 2026 г.
+
+| id | Название | Художник | Год | Умер | Откуда изображение | Статус |
+|---|---|---|---|---|---|---|
+| `van-gogh-starry-night` | «Звёздная ночь» / *The Starry Night* | Винсент Ван Гог | 1889 | 1890 | Оригинал в MoMA (Нью-Йорк), музей открытого доступа не даёт. Репродукция Google Arts & Culture на Wikimedia Commons: https://commons.wikimedia.org/wiki/File:Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg | В API Commons: `LicenseShortName: Public domain`, `Copyrighted: False`, `AttributionRequired: false`. Точные репродукции двумерных работ из общественного достояния не охраняются в США и ЕС; для Казахстана отдельной нормы не нашли — это не юридическое заключение. |
+| `van-gogh-sunflowers` | «Подсолнухи» / *Sunflowers* | Винсент Ван Гог | 1887 | 1890 | Met: https://www.metmuseum.org/art/collection/search/436524 | API Met: `"isPublicDomain": true` |
+
+Студия Гибли: кадры фильмов охраняются авторским правом (Хаяо Миядзаки жив). Студия разрешает пользоваться опубликованными кадрами «в рамках здравого смысла», но в приложение они не включены — их можно превратить в раскраску только для себя через «Своя картинка» (остаётся на iPad).

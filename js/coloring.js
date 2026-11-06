@@ -9,8 +9,63 @@ const DONE_AT = 0.9;
 const MAX_ZOOM = 8;
 const PEN_GUARD_MS = 350;
 const PAPER = '#FFFBF6';
+const WATER_BODY = 0.56;     // плотность одного мазка акварели (доля полного цвета)
+const WATER_RIM = 0.7;       // насколько темнеет край высохшего мазка
+const FILLED_ALPHA = 90;     // с какой плотности точка считается закрашенной
+const WASH_ALPHA = 150;      // плотность «заливки» при засчитанной области
+const SPR = 64;              // размер отпечатка кисти
+
+function rnd(seed) { let a = seed | 0; return () => { a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+// Зерно акварельной бумаги: плитка 256×256, повторяется по всей картине
+let paperTileCache = null;
+export function paperTile() {
+  if (paperTileCache) return paperTileCache;
+  const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d'), img = g.createImageData(S, S), d = img.data, r = rnd(11);
+  const v = new Float32Array(S * S);
+  for (let i = 0; i < v.length; i++) v[i] = r();
+  // сглаживание шума — мягкие «холмики» бумаги холодного прессования
+  for (let pass = 0; pass < 2; pass++) for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const i = y * S + x;
+    v[i] = (v[i] * 2 + v[y * S + (x + 1) % S] + v[y * S + (x + S - 1) % S] + v[((y + 1) % S) * S + x] + v[((y + S - 1) % S) * S + x]) / 6;
+  }
+  for (let i = 0; i < v.length; i++) {
+    const k = 255 - Math.max(0, (v[i] - 0.38)) * 70 - (r() < 0.004 ? 18 : 0);
+    d[i * 4] = k; d[i * 4 + 1] = k - 2; d[i * 4 + 2] = k - 5; d[i * 4 + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  paperTileCache = { canvas: c, url: c.toDataURL('image/png'), grain: v };
+  return paperTileCache;
+}
+
+// Акварельный отпечаток: неровный край, мягкая кромка. Это только форма — цвет и плотность задаются позже
+function waterSprite(seed) {
+  const S = SPR, a = new Uint8Array(S * S), r = rnd(seed);
+  const k1 = r() * 6.28, k2 = r() * 6.28, k3 = r() * 6.28;
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const dx = (x + 0.5) / S * 2 - 1, dy = (y + 0.5) / S * 2 - 1, q = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);
+    const edge = 0.84 + 0.06 * Math.sin(3 * ang + k1) + 0.05 * Math.sin(5 * ang + k2) + 0.03 * Math.sin(9 * ang + k3);
+    if (q >= edge) continue;
+    a[y * S + x] = Math.round(255 * Math.min(1, (edge - q) / 0.09));
+  }
+  return a;
+}
+
+// Неравномерность пигмента: зерно бумаги (мелко) и «облачка» размывки (крупно, у каждого мазка свои)
+function pigment(grain, x, y, ox, oy) {
+  const g1 = grain[(y & 255) * 256 + (x & 255)];
+  const g2 = grain[((((y >> 2) + oy) & 255) * 256) + (((x >> 2) + ox) & 255)];
+  return (1 + (g1 - 0.5) * 0.8) * (1 + (g2 - 0.5) * 1.1);
+}
 
 export async function loadPicture(id, level) {
+  if (id.startsWith('u-')) {
+    // своя картинка: собрана на iPad и лежит только в его хранилище
+    const u = await db.get('userpics', id);
+    if (!u) throw new Error('картинка не найдена');
+    return { w: u.w, h: u.h, palette: u.palette, regions: u.regions, map: decodeMap(new Uint16Array(u.rle), u.w * u.h) };
+  }
   const base = `data/${id}-${level}`;
   const [meta, bin] = await Promise.all([
     fetch(base + '.json').then((r) => { if (!r.ok) throw new Error('нет данных картинки'); return r.json(); }),
@@ -51,7 +106,9 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
   const paintCv = h('canvas', { class: 'cl-layer', width: W, height: H });
   const hintCv = h('canvas', { class: 'cl-layer cl-hint', width: W, height: H, hidden: true });
   const lineCv = h('canvas', { class: 'cl-layer', width: W, height: H });
-  picEl.append(paintCv, hintCv, lineCv);
+  const liveCv = h('canvas', { class: 'cl-layer cl-live', width: W, height: H });
+  const paperEl = h('div', { class: 'cl-layer cl-paper', style: `background-image:url(${paperTile().url})` });
+  picEl.append(paintCv, liveCv, paperEl, hintCv, lineCv);
   stage.append(picEl);
   const numCv = h('canvas', { class: 'cl-numbers' });
   vp.append(stage, numCv);
@@ -59,18 +116,20 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
   const dock = h('div', { class: 'dock cl-dock', role: 'toolbar', 'aria-label': 'Краски' });
   const chips = h('div', { class: 'cl-chips', role: 'radiogroup', 'aria-label': 'Номера красок' });
   const toolBox = h('div', { class: 'cl-tools' });
-  const btnBrush = h('button', { class: 'tool-btn on', type: 'button', 'aria-label': 'Кисть' }, `${icon('brush', 24)}<span>Кисть</span>`);
+  const btnWater = h('button', { class: 'tool-btn on', type: 'button', 'aria-label': 'Акварель' }, `${icon('drop', 24)}<span>Акварель</span>`);
+  const btnBrush = h('button', { class: 'tool-btn', type: 'button', 'aria-label': 'Ровная заливка' }, `${icon('brush', 24)}<span>Заливка</span>`);
   const btnErase = h('button', { class: 'tool-btn', type: 'button', 'aria-label': 'Ластик' }, `${icon('eraser', 24)}<span>Ластик</span>`);
   const sizeBox = h('label', { class: 'dock-size' });
   const sizeDot = h('span', { class: 'size-dot', 'aria-hidden': 'true' });
   const range = h('input', { type: 'range', min: 8, max: 70, 'aria-label': 'Размер кисти' });
   sizeBox.append(sizeDot, range);
-  toolBox.append(btnBrush, btnErase, sizeBox);
+  toolBox.append(btnWater, btnBrush, btnErase, sizeBox);
   dock.append(chips, h('span', { class: 'dock-sep' }), toolBox);
   screen.append(top, vp, dock);
   root.append(screen);
 
   const paint = paintCv.getContext('2d', { willReadFrequently: true });
+  const live = liveCv.getContext('2d');
   const hintCtx = hintCv.getContext('2d');
   const lineCtx = lineCv.getContext('2d');
   const numCtx = numCv.getContext('2d');
@@ -93,7 +152,7 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const p = y * W + x, r = map[p];
       if ((x < W - 1 && map[p + 1] !== r) || (y < H - 1 && map[p + W] !== r)) {
-        const o = p * 4; d[o] = 96; d[o + 1] = 78; d[o + 2] = 86; d[o + 3] = 150;
+        const o = p * 4; d[o] = 112; d[o + 1] = 98; d[o + 2] = 104; d[o + 3] = 112;
       }
     }
     lineCtx.putImageData(img, 0, 0);
@@ -111,7 +170,8 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
 
   // ---------- состояние ----------
   let sel = Math.max(0, palette.findIndex((_, c) => !colorDone(c)));
-  let tool = 'brush';
+  let tool = 'brush';   // 'brush' | 'erase'
+  let brushKind = settings.colorBrush || 'water'; // 'water' — акварель, 'flat' — ровная заливка
   let brushPt = settings.brushPt || 26;   // размер кисти в точках экрана: при увеличении кисть тоньше
   let hintOn = false;
   const view = { s: 1, tx: 0, ty: 0, fit: 1 };
@@ -158,7 +218,7 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
     const touched = new Set();
     for (let y = y0, k = 3; y < y1; y++) for (let x = x0; x < x1; x++, k += 4) {
       const i = y * W + x;
-      const f = d[k] > 128 ? 1 : 0;
+      const f = d[k] > FILLED_ALPHA ? 1 : 0;
       if (f !== filled[i]) { filled[i] = f; const r = map[i]; count[r] += f ? 1 : -1; touched.add(map[i]); }
     }
     const changed = [];
@@ -176,11 +236,17 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
     const w = bx1 - bx0 + 1, hh = by1 - by0 + 1;
     const img = paint.getImageData(bx0, by0, w, hh), d = img.data;
     const [cr, cg, cb] = rgb[regions[r].c];
+    const grain = paperTile().grain;
+    const water = brushKind === 'water';
     for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) {
       const i = (by0 + y) * W + bx0 + x;
       if (map[i] !== r) continue;
       const o = (y * w + x) * 4;
-      d[o] = cr; d[o + 1] = cg; d[o + 2] = cb; d[o + 3] = 255;
+      if (water) {
+        // пробелы заливаются лёгкой размывкой: светлее на «холмиках» бумаги
+        const wash = Math.min(255, Math.round(WASH_ALPHA * pigment(grain, bx0 + x, by0 + y, r * 37, r * 91)));
+        if (d[o + 3] < wash) { d[o] = cr; d[o + 1] = cg; d[o + 2] = cb; d[o + 3] = wash; }
+      } else { d[o] = cr; d[o + 1] = cg; d[o + 2] = cb; d[o + 3] = 255; }
       if (!filled[i]) { filled[i] = 1; count[r]++; }
     }
     paint.putImageData(img, bx0, by0);
@@ -266,7 +332,8 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
       b.classList.toggle('done', colorDone(c));
     });
     chipEls[sel] && chipEls[sel].scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-    btnBrush.classList.toggle('on', tool === 'brush');
+    btnWater.classList.toggle('on', tool === 'brush' && brushKind === 'water');
+    btnBrush.classList.toggle('on', tool === 'brush' && brushKind === 'flat');
     btnErase.classList.toggle('on', tool === 'erase');
     range.value = brushPt;
     const px = Math.max(6, Math.min(30, brushPt * 0.55));
@@ -283,7 +350,9 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
     btnRedo.disabled = !future.length;
     return d;
   }
-  btnBrush.addEventListener('click', () => { tool = 'brush'; syncDock(); });
+  const setKind = (k) => { tool = 'brush'; brushKind = k; settings.colorBrush = k; db.setMeta('colorBrush', k); syncDock(); };
+  btnWater.addEventListener('click', () => setKind('water'));
+  btnBrush.addEventListener('click', () => setKind('flat'));
   btnErase.addEventListener('click', () => { tool = 'erase'; syncDock(); });
   range.addEventListener('input', () => { brushPt = +range.value; settings.brushPt = brushPt; syncDock(); });
   range.addEventListener('change', () => db.setMeta('brushPt', brushPt));
@@ -296,15 +365,30 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
   const tmp = document.createElement('canvas');
   const tmpCtx = tmp.getContext('2d');
   let stroke = null, strokePtr = null, penUntil = 0;
+  const cov = new Uint8Array(W * H); // покрытие текущего акварельного мазка
 
   function startStroke(e) {
     const p = toPic(e.clientX, e.clientY);
     const wpx = brushPt / view.s; // толщина в точках картинки
-    stroke = { tool, c: sel, w: wpx, last: p, box: [p.x - wpx, p.y - wpx, p.x + wpx, p.y + wpx] };
+    const water = tool === 'brush' && brushKind === 'water';
+    stroke = { tool, water, c: sel, w: wpx, last: p, carry: 0, box: [p.x - wpx, p.y - wpx, p.x + wpx, p.y + wpx] };
     strokePtr = e.pointerId;
     bef.clearRect(0, 0, W, H);
     bef.drawImage(paintCv, 0, 0);
     scr.clearRect(0, 0, W, H);
+    if (water) {
+      // у каждого мазка чуть свой оттенок — как у настоящей акварели
+      const seed = (Math.random() * 1e9) | 0, rr = rnd(seed), k = 1 + (rr() - 0.5) * 0.12;
+      stroke.rgb = rgb[sel].map((v) => Math.max(0, Math.min(255, Math.round(v * k))));
+      stroke.spr = waterSprite(seed);
+      stroke.rng = rr;
+      stroke.ox = (rr() * 256) | 0; stroke.oy = (rr() * 256) | 0;
+      stroke.inSel = new Uint8Array(regions.length);
+      regions.forEach((rg, i) => { if (rg.c === sel) stroke.inSel[i] = 1; });
+      stamp(p.x, p.y);
+      previewWater(p.x - wpx, p.y - wpx, p.x + wpx, p.y + wpx);
+      return;
+    }
     scr.lineCap = scr.lineJoin = 'round';
     scr.strokeStyle = scr.fillStyle = tool === 'erase' ? '#000' : palette[sel].hex;
     scr.lineWidth = wpx;
@@ -314,6 +398,22 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
   function moveStroke(e) {
     const list = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    if (stroke.water) {
+      for (const ev of list) {
+        const p = toPic(ev.clientX, ev.clientY), a = stroke.last;
+        const dist = Math.hypot(p.x - a.x, p.y - a.y), step = Math.max(0.8, stroke.w * 0.14);
+        let t = step - stroke.carry;
+        while (t <= dist) { stamp(a.x + (p.x - a.x) * (t / dist), a.y + (p.y - a.y) * (t / dist)); t += step; }
+        stroke.carry = dist - (t - step);
+        x0 = Math.min(x0, p.x, a.x); y0 = Math.min(y0, p.y, a.y); x1 = Math.max(x1, p.x, a.x); y1 = Math.max(y1, p.y, a.y);
+        stroke.last = p;
+      }
+      const w = stroke.w;
+      previewWater(x0 - w, y0 - w, x1 + w, y1 + w);
+      const b = stroke.box;
+      b[0] = Math.min(b[0], x0 - w); b[1] = Math.min(b[1], y0 - w); b[2] = Math.max(b[2], x1 + w); b[3] = Math.max(b[3], y1 + w);
+      return;
+    }
     scr.beginPath();
     scr.moveTo(stroke.last.x, stroke.last.y);
     for (const ev of list) {
@@ -328,6 +428,73 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
     composite(x0 - w, y0 - w, x1 + w, y1 + w);
     const b = stroke.box;
     b[0] = Math.min(b[0], x0 - w); b[1] = Math.min(b[1], y0 - w); b[2] = Math.max(b[2], x1 + w); b[3] = Math.max(b[3], y1 + w);
+  }
+  // один отпечаток: покрытие мазка растёт по максимуму, а не складывается — один мазок = один ровный слой
+  function stamp(x, y) {
+    const s = stroke, w = s.w * (0.9 + s.rng() * 0.2), R = w / 2 + 1, th = s.rng() * Math.PI * 2;
+    const cs = Math.cos(th), sn = Math.sin(th), k = SPR / w, half = SPR / 2, spr = s.spr;
+    const xa = Math.max(0, Math.floor(x - R)), xb = Math.min(W - 1, Math.ceil(x + R));
+    const ya = Math.max(0, Math.floor(y - R)), yb = Math.min(H - 1, Math.ceil(y + R));
+    for (let py = ya; py <= yb; py++) {
+      const dy = py + 0.5 - y, row = py * W;
+      for (let px = xa; px <= xb; px++) {
+        const dx = px + 0.5 - x;
+        const u = (dx * cs + dy * sn) * k + half, v = (dy * cs - dx * sn) * k + half;
+        if (u < 0 || v < 0 || u >= SPR || v >= SPR) continue;
+        const a = spr[(v | 0) * SPR + (u | 0)];
+        if (a > cov[row + px]) cov[row + px] = a;
+      }
+    }
+  }
+  // мокрый мазок поверх картины (только в областях номера); край «высохнет» и ляжет на картину, когда карандаш поднят
+  function waterImage(x0, y0, w, hh, rim) {
+    const s = stroke, img = live.createImageData(w, hh), d = img.data, grain = paperTile().grain;
+    const [cr, cg, cb] = s.rgb;
+    for (let y = 0; y < hh; y++) {
+      const row = (y0 + y) * W;
+      for (let x = 0; x < w; x++) {
+        const i = row + x0 + x, c = cov[i];
+        if (!c || !s.inSel[map[i]]) continue;
+        let a = c * WATER_BODY * pigment(grain, x0 + x, y0 + y, s.ox, s.oy);
+        if (rim) a += rim[y * w + x] * WATER_RIM;
+        const o = (y * w + x) * 4;
+        d[o] = cr; d[o + 1] = cg; d[o + 2] = cb; d[o + 3] = a > 255 ? 255 : a;
+      }
+    }
+    return img;
+  }
+  function previewWater(x0, y0, x1, y1) {
+    x0 = Math.max(0, Math.floor(x0)); y0 = Math.max(0, Math.floor(y0));
+    x1 = Math.min(W, Math.ceil(x1)); y1 = Math.min(H, Math.ceil(y1));
+    const w = x1 - x0, hh = y1 - y0;
+    if (w <= 0 || hh <= 0) return;
+    live.putImageData(waterImage(x0, y0, w, hh, null), x0, y0);
+  }
+  // кайма высохшего мазка: пигмент собирается у края мокрого пятна и у контура области
+  function dryRim(x0, y0, w, hh, rad) {
+    const s = stroke, n = w * hh, m = new Float32Array(n), t = new Float32Array(n), out = new Float32Array(n);
+    for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) {
+      const i = (y0 + y) * W + x0 + x;
+      if (s.inSel[map[i]]) m[y * w + x] = cov[i];
+    }
+    const span = 2 * rad + 1;
+    for (let y = 0; y < hh; y++) { // по горизонтали
+      let acc = 0; const o = y * w;
+      for (let x = -rad; x < w + rad; x++) {
+        acc += (x + rad < w && x + rad >= 0) ? m[o + x + rad] : 0;
+        if (x - rad - 1 >= 0 && x - rad - 1 < w) acc -= m[o + x - rad - 1];
+        if (x >= 0 && x < w) t[o + x] = acc / span;
+      }
+    }
+    for (let x = 0; x < w; x++) { // по вертикали
+      let acc = 0;
+      for (let y = -rad; y < hh + rad; y++) {
+        acc += (y + rad < hh && y + rad >= 0) ? t[(y + rad) * w + x] : 0;
+        if (y - rad - 1 >= 0 && y - rad - 1 < hh) acc -= t[(y - rad - 1) * w + x];
+        if (y >= 0 && y < hh) { const i = y * w + x, e = m[i] - acc / span; out[i] = e > 0 ? Math.min(255, e * 1.3) : 0; }
+      }
+    }
+    return out;
   }
   // кусок штриха → только внутри областей выбранного номера → на картину
   function composite(x0, y0, x1, y1) {
@@ -354,6 +521,21 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
     const s = stroke; stroke = null; strokePtr = null;
     if (!s) return;
     let [x0, y0, x1, y1] = s.box;
+    if (s.water) {
+      // лессировка: новый слой умножается на старый — второй проход делает цвет гуще
+      const bx = Math.max(0, Math.floor(x0)), by = Math.max(0, Math.floor(y0)), bw = Math.min(W, Math.ceil(x1)) - bx, bh = Math.min(H, Math.ceil(y1)) - by;
+      if (bw > 0 && bh > 0) {
+        stroke = s;
+        const rad = Math.max(2, Math.min(7, Math.round(s.w * 0.07)));
+        live.putImageData(waterImage(bx, by, bw, bh, dryRim(bx, by, bw, bh, rad)), bx, by);
+        stroke = null;
+        for (let y = by; y < by + bh; y++) cov.fill(0, y * W + bx, y * W + bx + bw);
+        paint.save(); paint.globalCompositeOperation = 'multiply';
+        paint.drawImage(liveCv, bx, by, bw, bh, bx, by, bw, bh);
+        paint.restore();
+        live.clearRect(bx, by, bw, bh);
+      }
+    }
     const changed = recount(x0, y0, x1, y1);
     const newlyDone = changed.filter((r) => done[r]);
     for (const r of newlyDone) {
@@ -416,6 +598,7 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
     const g = c.getContext('2d');
     g.fillStyle = PAPER; g.fillRect(0, 0, W, H);
     g.drawImage(paintCv, 0, 0);
+    g.save(); g.globalCompositeOperation = 'multiply'; g.globalAlpha = 0.55; g.fillStyle = g.createPattern(paperTile().canvas, 'repeat'); g.fillRect(0, 0, W, H); g.restore();
     g.globalAlpha = 0.55; g.drawImage(lineCv, 0, 0); g.globalAlpha = 1;
     const blob = await new Promise((res) => c.toBlob(res, 'image/png'));
     const how = await saveFile(blob, `${info.title.replace(/[\\/:*?"<>|]+/g, ' ')} — раскраска.png`);
