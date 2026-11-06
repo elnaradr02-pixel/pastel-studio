@@ -35,6 +35,23 @@
    ]
   },
   {
+   "id": "cat",
+   "title": "Кот",
+   "author": "",
+   "year": "",
+   "kind": "code",
+   "thumb": "data/thumbs/cat.jpg",
+   "credit": "",
+   "levels": [
+    {
+     "key": "std",
+     "label": "Обычная",
+     "regions": 76,
+     "colors": 14
+    }
+   ]
+  },
+  {
    "id": "van-gogh-bedroom",
    "title": "Спальня в Арле",
    "author": "Винсент Ван Гог",

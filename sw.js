@@ -1,6 +1,6 @@
 // Сервис-воркер: держит всё приложение в кэше, чтобы оно открывалось без интернета.
 // При изменении любого файла приложения поднимайте VERSION — так iPad скачает новую версию.
-const VERSION = 'pastel-v2';
+const VERSION = 'pastel-v3';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest',
   'css/app.css', 'css/fonts.css',
