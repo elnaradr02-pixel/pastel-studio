@@ -8,9 +8,12 @@ import { openNotebook, blankPage } from './notebook.js';
 import { openColoring } from './coloring.js';
 import { buildFromImage, encodeMap } from './pbn.js';
 
+// номер версии совпадает с VERSION в sw.js (pastel-v6); виден на главном экране — так легко проверить, что iPad обновился
+export const APP_VERSION = 6;
 const root = document.getElementById('app');
-const settings = { fingerDraw: false, hasPressure: false };
+const settings = { fingerDraw: false, hasPressure: false, version: APP_VERSION };
 let cleanup = null;
+let updateReady = false; // новая версия скачана и включится при ближайшем удобном моменте
 
 async function boot() {
   settings.fingerDraw = await db.getMeta('fingerDraw', false);
@@ -25,14 +28,30 @@ async function boot() {
     window.removeEventListener('pointerdown', once);
     settings.persist = await db.askPersistence();
   });
+  settings.shapeDebug = await db.getMeta('shapeDebug', false);
   route();
   if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    const hadController = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.register('sw.js').catch(() => {});
+    // новая версия скачалась: на главном экране перезагружаемся сразу,
+    // в блокноте или раскраске — когда выйдешь из них или свернёшь приложение (после сохранения)
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || updateReady) return;
+      updateReady = true;
+      if (!cleanup) location.reload();
+      else toast('Пастель обновилась — новая версия включится, когда выйдешь на главный экран');
+    });
+    document.addEventListener('visibilitychange', async () => {
+      if (!updateReady || document.visibilityState !== 'hidden') return;
+      if (cleanup) { const c = cleanup; cleanup = null; try { await c(); } catch { /* сохранение уже было */ } }
+      location.reload();
+    });
   }
 }
 
 async function route() {
   if (cleanup) { const c = cleanup; cleanup = null; await c(); }
+  if (updateReady && !/^#\/(nb|color)\//.test(location.hash)) { location.reload(); return; }
   const m = location.hash.match(/^#\/nb\/([\w-]+)/);
   const c = location.hash.match(/^#\/color\/([\w-]+)\/([\w-]+)/);
   if (m) {
@@ -87,6 +106,7 @@ async function renderHome(tab = 'notebooks') {
     grid.append(card);
   }
   screen.append(head, tabs, grid);
+  screen.append(h('p', { class: 'home-version' }, `Пастель · версия ${APP_VERSION}`));
   if (!notebooks.length) {
     screen.append(h('p', { class: 'home-empty' }, 'Здесь будут ваши блокноты. Создайте первый — выберите обложку и бумагу.'));
   }

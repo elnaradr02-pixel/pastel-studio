@@ -253,6 +253,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     lastPt = null;
     holdAt = null; trail = [];
     clearTimeout(holdTimer);
+    if (diag.el) dlog({ type: e.pointerType, moves: 0, still: null, hold: 'ждёт', result: '—' });
     addPoints(e);
   }
 
@@ -260,8 +261,38 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   // Настоящий карандаш на стекле не стоит идеально: он дрожит и чуть уплывает. «Стоит» = последние HOLD_MS
   // все положения карандаша лежат в круге HOLD_PX вокруг текущего. Точки, набежавшие за время удержания,
   // в распознавание не идут — иначе комок дрожи у конца портит фигуру.
-  const HOLD_MS = 500, HOLD_PX = 9;
-  let holdTimer = 0, holdAt = null, trail = [];
+  const HOLD_MS = 450, HOLD_PX = 9;
+  let holdTimer = 0, holdAt = null, trail = [], missToastAt = 0;
+
+  // «Проверка фигур» (⋯ → Проверка фигур): показывает, что видит приложение, — чтобы найти причину на iPad
+  const diag = { el: null, s: {} };
+  function setDiag(on) {
+    settings.shapeDebug = on;
+    db.setMeta('shapeDebug', on);
+    if (on && !diag.el) { diag.el = h('div', { class: 'shape-debug', 'aria-live': 'polite' }); vp.append(diag.el); dlog({}); }
+    if (!on && diag.el) { diag.el.remove(); diag.el = null; }
+  }
+  function dlog(patch) {
+    if (!diag.el) return;
+    Object.assign(diag.s, patch);
+    const d = diag.s;
+    diag.el.textContent = [
+      `Проверка фигур · версия ${settings.version || '?'}`,
+      `фигуры по удержанию: ${settings.shapes === false ? 'ВЫКЛЮЧЕНЫ' : 'включены'}`,
+      `касание: ${d.type || '—'}, событий в штрихе: ${d.moves ?? 0}`,
+      `стоит на месте: ${d.still != null ? (d.still / 1000).toFixed(2) + ' с' : '—'}`,
+      `удержание: ${d.hold || '—'}`,
+      `фигура: ${d.result || '—'}`,
+      `системная отмена касания: ${d.cancels || 0}`,
+    ].join('\n');
+  }
+  function ring(cx, cy) {
+    const r = vp.getBoundingClientRect();
+    const el = h('div', { class: 'hold-ring', style: `left:${cx - r.left}px;top:${cy - r.top}px` });
+    vp.append(el);
+    setTimeout(() => el.remove(), 500);
+  }
+
   function armHold(cx, cy) {
     if (!stroke || stroke.tool === 'eraser' || stroke.snapped || settings.shapes === false) return;
     const now = performance.now();
@@ -274,12 +305,27 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     holdAt = { x: cx, y: cy, n: since.n, t: since.t };
     clearTimeout(holdTimer);
     holdTimer = setTimeout(trySnap, Math.max(0, since.t + HOLD_MS - now));
+    if (diag.el) dlog({ moves: (diag.s.moves || 0) + 1, still: now - since.t });
   }
-  function trySnap() {
+  function trySnap(atLift = false) {
     if (!stroke || stroke.snapped) return;
     const body = holdAt ? stroke.pts.slice(0, Math.max(STRIDE * 2, holdAt.n)) : stroke.pts;
+    let info = null;
+    if (diag.el) globalThis.__shapeDebug = (x) => { info = x; };
     const res = recognize(body, STRIDE);
-    if (!res) return;
+    globalThis.__shapeDebug = null;
+    if (holdAt) ring(holdAt.x, holdAt.y);
+    if (diag.el) {
+      const why = info ? `не узнал: ближе всего ${SHAPE_NAMES[info.best.name] || info.best.name}, отличие ${info.best.d.toFixed(2)} (нужно ≤ 1.55), углов ${info.nc}` : 'не узнал: не замкнута и не прямая';
+      dlog({ hold: atLift ? 'засчитано при отрыве' : `сработало через ${((performance.now() - holdAt.t) / 1000).toFixed(2)} с`, result: res ? `${SHAPE_NAMES[res.type] || res.type} ✓` : why });
+    }
+    if (!res) {
+      // не узнали — коротко скажем, чтобы было понятно, что удержание сработало (не чаще раза в 6 секунд)
+      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+      for (let i = 0; i < body.length; i += STRIDE) { x0 = Math.min(x0, body[i]); x1 = Math.max(x1, body[i]); y0 = Math.min(y0, body[i + 1]); y1 = Math.max(y1, body[i + 1]); }
+      if (Math.hypot(x1 - x0, y1 - y0) > 80 && performance.now() - missToastAt > 6000) { missToastAt = performance.now(); toast('Фигуру не узнала — нарисуйте чуть ровнее и задержите карандаш'); }
+      return;
+    }
     const p = body, ws = [];
     let as = 0;
     for (let i = 0; i < p.length; i += STRIDE) { ws.push(p[i + 2]); as += p[i + 3]; }
@@ -424,6 +470,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
 
   function endStroke() {
     if (!stroke) return;
+    if (!stroke.snapped && holdAt && stroke.tool !== 'eraser' && settings.shapes !== false && performance.now() - holdAt.t >= 300) trySnap(true);
     cancelAnimationFrame(rafLive); rafLive = 0;
     clearTimeout(holdTimer);
     const s = stroke;
@@ -845,7 +892,9 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   function onUp(e) {
     if (e.pointerType === 'pen') penUntil = performance.now() + PEN_GUARD_MS;
     if (stroke && e.pointerId === strokePtr) {
-      if (e.type === 'pointercancel') cancelStroke(); else endStroke();
+      // iPad может «отменить» касание карандаша (системный жест при удержании) — штрих не выбрасываем, а заканчиваем как обычно
+      if (e.type === 'pointercancel' && diag.el) dlog({ cancels: (diag.s.cancels || 0) + 1 });
+      if (e.type === 'pointercancel' && e.pointerType !== 'pen') cancelStroke(); else endStroke();
       return;
     }
     if (stickOp && e.pointerId === stickOp.pid) { endStickOp(); return; }
@@ -855,6 +904,8 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     }
   }
   vp.addEventListener('pointerdown', onDown);
+  vp.addEventListener('contextmenu', (e) => e.preventDefault());
+  vp.addEventListener('selectstart', (e) => e.preventDefault());
   vp.addEventListener('pointermove', onMove);
   vp.addEventListener('pointerup', onUp);
   vp.addEventListener('pointercancel', onUp);
@@ -957,6 +1008,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
         { label: 'Рисовать пальцем', icon: 'hand', checked: !!settings.fingerDraw, onClick: () => { settings.fingerDraw = !settings.fingerDraw; db.setMeta('fingerDraw', settings.fingerDraw); toast(settings.fingerDraw ? 'Палец рисует, двумя пальцами — листать и масштаб' : 'Палец листает и масштабирует, рисует только карандаш'); } },
         { label: 'Фигуры по удержанию', icon: 'shape', checked: settings.shapes !== false, onClick: () => { settings.shapes = settings.shapes === false; db.setMeta('shapes', settings.shapes); toast(settings.shapes ? 'Нарисуйте фигуру и задержите карандаш — она выровняется' : 'Фигуры остаются как нарисованы'); } },
         { label: 'Вся страница целиком', icon: 'fit', onClick: () => { fitView(); hideDetail(); } },
+        { label: 'Проверка фигур', icon: 'info', checked: !!settings.shapeDebug, onClick: () => setDiag(!settings.shapeDebug) },
       ],
     });
   }
@@ -1028,6 +1080,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   ro.observe(vp);
 
   dock.sync();
+  if (settings.shapeDebug) setDiag(true);
   fitView();
   showPage();
 

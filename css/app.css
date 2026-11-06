@@ -291,3 +291,14 @@ button:disabled { opacity: .35; cursor: default; }
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
   .cl-hint { animation: none; opacity: .85; }
 }
+
+/* номер версии на главном экране */
+.home-version { margin: 28px 0 8px; text-align: center; color: var(--ink-soft); font-size: 13px; opacity: .75; }
+
+/* удержание карандаша засчитано — колечко у кончика */
+.hold-ring { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; border: 2.5px solid var(--rose-deep); pointer-events: none; z-index: 6; animation: holdRing .45s ease-out forwards; }
+@keyframes holdRing { from { transform: scale(.35); opacity: .9; } to { transform: scale(1.15); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .hold-ring { animation: holdFade .45s ease-out forwards; } @keyframes holdFade { from { opacity: .9; } to { opacity: 0; } } }
+
+/* «Проверка фигур»: что видит приложение, для отладки на iPad */
+.shape-debug { position: absolute; left: 12px; top: 12px; z-index: 7; max-width: min(420px, calc(100% - 24px)); padding: 10px 12px; border-radius: 14px; background: rgba(255, 253, 250, .94); box-shadow: var(--shadow-sm); font: 12.5px/1.45 ui-monospace, Menlo, monospace; color: var(--ink); white-space: pre-wrap; pointer-events: none; }
