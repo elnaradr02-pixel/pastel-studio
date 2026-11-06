@@ -18,7 +18,7 @@ const only = process.argv[3]
       if (only && only !== p.id) { if (p.cached) entry.levels.push(p.cached[lv.key]); continue }
       const job = { kind: p.kind, longSide: lv.longSide, opts: lv.opts }
       if (p.kind === 'code') job.module = '/' + p.module
-      else { const buf = fs.readFileSync(p.image); job.dataUrl = 'data:image/jpeg;base64,' + buf.toString('base64'); job.opts = { ...lv.opts, longSide: lv.longSide }; if (p.inset != null) job.inset = p.inset }
+      else { const buf = fs.readFileSync(p.image); job.dataUrl = 'data:image/jpeg;base64,' + buf.toString('base64'); job.opts = { ...lv.opts, longSide: lv.longSide }; if (p.inset != null) job.inset = p.inset; if (p.crop) job.crop = p.crop }
       const out = await page.evaluate((j) => window.buildPicture(j), job)
       fs.writeFileSync(path.join(ROOT, 'data', `${p.id}-${lv.key}.json`), out.meta)
       fs.writeFileSync(path.join(ROOT, 'data', `${p.id}-${lv.key}.bin`), Buffer.from(out.rle, 'base64'))

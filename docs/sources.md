@@ -90,3 +90,90 @@
 | `van-gogh-sunflowers` | «Подсолнухи» / *Sunflowers* | Винсент Ван Гог | 1887 | 1890 | Met: https://www.metmuseum.org/art/collection/search/436524 | API Met: `"isPublicDomain": true` |
 
 Студия Гибли: кадры фильмов охраняются авторским правом (Хаяо Миядзаки жив). Студия разрешает пользоваться опубликованными кадрами «в рамках здравого смысла», но в приложение они не включены — их можно превратить в раскраску только для себя через «Своя картинка» (остаётся на iPad).
+
+## Вторая партия — проверено 6 ноября 2026 г.
+
+Запись каждой работы получена из API самого музея: The Met Collection API, Art Institute of Chicago API или Cleveland Museum of Art Open Access API. Изображения скачаны только с серверов этих музеев. Правила те же, что для первой партии, и одно новое:
+- музей сам отмечает работу как общественное достояние или CC0;
+- художник умер не позже 1955 г.;
+- работа создана до 1931 г., поэтому она в общественном достоянии и в США, где лежит сайт.
+
+| № | id | Название | Художник | Год | Умер | Музей | Поле лицензии в API | Размер, px |
+|---|---|---|---|---|---|---|---|---|
+| 1 | `van-gogh-roses` | «Розы» / *Roses* | Винсент Ван Гог / Vincent van Gogh | 1890 | 1890 | The Metropolitan Museum of Art, New York | `"isPublicDomain": true` | 1900×2400 |
+| 2 | `van-gogh-cypresses` | «Кипарисы» / *Cypresses* | Винсент Ван Гог / Vincent van Gogh | 1889 | 1890 | The Metropolitan Museum of Art, New York | `"isPublicDomain": true` | 1476×1861 |
+| 3 | `van-gogh-oleanders` | «Олеандры» / *Oleanders* | Винсент Ван Гог / Vincent van Gogh | 1888 | 1890 | The Metropolitan Museum of Art, New York | `"isPublicDomain": true` | 2400×1971 |
+| 4 | `van-gogh-large-plane-trees` | «Большие платаны (Дорожные рабочие в Сен-Реми)» / *The Large Plane Trees (Road Menders at Saint-Rémy)* | Винсент Ван Гог / Vincent van Gogh | 1889 | 1890 | Кливленд | `"share_license_status": "CC0"` | 2400×1915 |
+| 5 | `monet-poppy-field-giverny` | «Маковое поле (Живерни)» / *Poppy Field (Giverny)* | Клод Моне / Claude Monet | 1890–91 | 1926 | AIC (Чикаго) | `"is_public_domain": true` | 1686×1095 |
+| 6 | `monet-stacks-of-wheat-end-of-summer` | «Стога пшеницы (Конец лета)» / *Stacks of Wheat (End of Summer)* | Клод Моне / Claude Monet | 1890–91 | 1926 | AIC (Чикаго) | `"is_public_domain": true` | 1686×996 |
+| 7 | `monet-cliff-walk-pourville` | «Прогулка по скалам в Пурвиле» / *Cliff Walk at Pourville* | Клод Моне / Claude Monet | 1882 | 1926 | AIC (Чикаго) | `"is_public_domain": true` | 1686×1350 |
+| 8 | `rousseau-repast-of-the-lion` | «Трапеза льва» / *The Repast of the Lion* | Анри Руссо / Henri Rousseau | ca. 1907 | 1910 | The Metropolitan Museum of Art, New York | `"isPublicDomain": true` | 2400×1689 |
+| 9 | `hiroshige-sudden-shower-atake` | «Внезапный ливень над мостом Син-Охаси и Атакэ» / *Sudden Shower over Shin-Ōhashi Bridge and Atake (One Hundred Famous Views of Edo)* | Утагава Хиросигэ / Utagawa Hiroshige | 1857 | 1858 | The Metropolitan Museum of Art, New York | `"isPublicDomain": true` | 1647×2400 |
+| 10 | `hokusai-red-fuji` | «Красная Фудзи (Южный ветер, ясное небо)» / *South Wind, Clear Sky (Red Fuji), Thirty-six Views of Mount Fuji* | Кацусика Хокусай / Katsushika Hokusai | ca. 1830–32 | 1849 | The Metropolitan Museum of Art, New York | `"isPublicDomain": true` | 2400×1643 |
+| 11 | `cassatt-childs-bath` | «Купание ребёнка» / *The Child's Bath* | Мэри Кассат / Mary Cassatt | 1893 | 1926 | AIC (Чикаго) | `"is_public_domain": true` | 1686×2558 |
+| 12 | `degas-dance-class` | «Танцевальный класс» / *The Dance Class* | Эдгар Дега / Edgar Degas | 1874 | 1917 | The Metropolitan Museum of Art, New York | `"isPublicDomain": true` | 2226×2400 |
+| 13 | `redon-vase-of-flowers` | «Ваза с цветами (на розовом фоне)» / *Vase of Flowers (Pink Background)* | Одилон Редон / Odilon Redon | ca. 1906 | 1916 | The Metropolitan Museum of Art, New York | `"isPublicDomain": true` | 1788×2400 |
+| 14 | `koson-dancing-fox` | «Танцующая лиса» / *Dancing Fox* | Охара Косон / Ohara Koson | 1900–1910s | 1945 | Кливленд | `"share_license_status": "CC0"` | 1251×2400 |
+
+Не взяты:
+- Моне, «Сад в Сент-Адрессе» (Met 437133): API отвечает `isPublicDomain: false`. Вместо неё — «Маковое поле» из AIC.
+- Птицы и цветы Охары Косона: в AIC у всех с изображением `is_public_domain: false`. Вместо них — «Танцующая лиса» из Кливленда (CC0).
+
+Ссылки:
+
+- **van-gogh-roses** (номер в музее: 1993.400.5)
+  - страница: https://www.metmuseum.org/art/collection/search/436534
+  - API: https://collectionapi.metmuseum.org/public/collection/v1/objects/436534
+  - изображение: https://images.metmuseum.org/CRDImages/ep/original/DP346475.jpg
+- **van-gogh-cypresses** (номер в музее: 49.30)
+  - страница: https://www.metmuseum.org/art/collection/search/437980
+  - API: https://collectionapi.metmuseum.org/public/collection/v1/objects/437980
+  - изображение: https://images.metmuseum.org/CRDImages/ep/original/DP130999.jpg
+- **van-gogh-oleanders** (номер в музее: 62.24)
+  - страница: https://www.metmuseum.org/art/collection/search/436530
+  - API: https://collectionapi.metmuseum.org/public/collection/v1/objects/436530
+  - изображение: https://images.metmuseum.org/CRDImages/ep/original/DT1494.jpg
+- **van-gogh-large-plane-trees** (номер в музее: 1947.209)
+  - страница: https://clevelandart.org/art/1947.209
+  - API: https://openaccess-api.clevelandart.org/api/artworks/125249
+  - изображение: https://openaccess-cdn.clevelandart.org/1947.209/1947.209_print.jpg
+- **monet-poppy-field-giverny** (номер в музее: 1922.4465)
+  - страница: https://www.artic.edu/artworks/4783
+  - API: https://api.artic.edu/api/v1/artworks/4783
+  - изображение: https://www.artic.edu/iiif/2/db94c894-a24c-c2e0-9db9-0506567a0152/full/1686,/0/default.jpg
+- **monet-stacks-of-wheat-end-of-summer** (номер в музее: 1985.1103)
+  - страница: https://www.artic.edu/artworks/64818
+  - API: https://api.artic.edu/api/v1/artworks/64818
+  - изображение: https://www.artic.edu/iiif/2/a38e2828-ec6f-ece1-a30f-70243449197b/full/1686,/0/default.jpg
+- **monet-cliff-walk-pourville** (номер в музее: 1933.443)
+  - страница: https://www.artic.edu/artworks/14620
+  - API: https://api.artic.edu/api/v1/artworks/14620
+  - изображение: https://www.artic.edu/iiif/2/b0effb1c-ff23-bbaa-f809-9fd94e31c1a0/full/1686,/0/default.jpg
+- **rousseau-repast-of-the-lion** (номер в музее: 51.112.5)
+  - страница: https://www.metmuseum.org/art/collection/search/438822
+  - API: https://collectionapi.metmuseum.org/public/collection/v1/objects/438822
+  - изображение: https://images.metmuseum.org/CRDImages/ep/original/DT50.jpg
+- **hiroshige-sudden-shower-atake** (номер в музее: JP2522)
+  - страница: https://www.metmuseum.org/art/collection/search/55433
+  - API: https://collectionapi.metmuseum.org/public/collection/v1/objects/55433
+  - изображение: https://images.metmuseum.org/CRDImages/as/original/DP130156.jpg
+- **hokusai-red-fuji** (номер в музее: JP2960)
+  - страница: https://www.metmuseum.org/art/collection/search/55736
+  - API: https://collectionapi.metmuseum.org/public/collection/v1/objects/55736
+  - изображение: https://images.metmuseum.org/CRDImages/as/original/DP141053.jpg
+- **cassatt-childs-bath** (номер в музее: 1910.2)
+  - страница: https://www.artic.edu/artworks/111442
+  - API: https://api.artic.edu/api/v1/artworks/111442
+  - изображение: https://www.artic.edu/iiif/2/3b885ae0-4d46-5fe4-d70a-00474827f02c/full/1686,/0/default.jpg
+- **degas-dance-class** (номер в музее: 1987.47.1)
+  - страница: https://www.metmuseum.org/art/collection/search/438817
+  - API: https://collectionapi.metmuseum.org/public/collection/v1/objects/438817
+  - изображение: https://images.metmuseum.org/CRDImages/ep/original/DP-20101-001.jpg
+- **redon-vase-of-flowers** (номер в музее: 59.16.3)
+  - страница: https://www.metmuseum.org/art/collection/search/437382
+  - API: https://collectionapi.metmuseum.org/public/collection/v1/objects/437382
+  - изображение: https://images.metmuseum.org/CRDImages/ep/original/DT2159.jpg
+- **koson-dancing-fox** (номер в музее: 2016.546)
+  - страница: https://clevelandart.org/art/2016.546
+  - API: https://openaccess-api.clevelandart.org/api/artworks/293239
+  - изображение: https://openaccess-cdn.clevelandart.org/2016.546/2016.546_print.jpg

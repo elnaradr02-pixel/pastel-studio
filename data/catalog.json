@@ -8,6 +8,7 @@
    "kind": "code",
    "thumb": "data/thumbs/house.jpg",
    "credit": "",
+   "searchExtra": "дом домик house",
    "levels": [
     {
      "key": "std",
@@ -15,8 +16,7 @@
      "regions": 69,
      "colors": 14
     }
-   ],
-   "searchExtra": "дом домик house"
+   ]
   },
   {
    "id": "flowers",
@@ -26,6 +26,7 @@
    "kind": "code",
    "thumb": "data/thumbs/flowers.jpg",
    "credit": "",
+   "searchExtra": "цветы букет flowers",
    "levels": [
     {
      "key": "std",
@@ -33,8 +34,7 @@
      "regions": 72,
      "colors": 14
     }
-   ],
-   "searchExtra": "цветы букет flowers"
+   ]
   },
   {
    "id": "cat",
@@ -44,6 +44,7 @@
    "kind": "code",
    "thumb": "data/thumbs/cat.jpg",
    "credit": "",
+   "searchExtra": "кот кошка котик cat",
    "levels": [
     {
      "key": "std",
@@ -51,8 +52,7 @@
      "regions": 76,
      "colors": 14
     }
-   ],
-   "searchExtra": "кот кошка котик cat"
+   ]
   },
   {
    "id": "van-gogh-starry-night",
@@ -62,6 +62,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/van-gogh-starry-night.jpg",
    "credit": "Винсент Ван Гог. «Звёздная ночь», 1889. Оригинал — Музей современного искусства (MoMA), Нью-Йорк. Репродукция Google Arts & Culture с Wikimedia Commons, отмечена как общественное достояние (Public domain, атрибуция не требуется): https://commons.wikimedia.org/wiki/File:Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg",
+   "searchExtra": "The Starry Night Vincent van Gogh звездная ночь ван гог",
    "levels": [
     {
      "key": "easy",
@@ -81,8 +82,7 @@
      "regions": 205,
      "colors": 28
     }
-   ],
-   "searchExtra": "The Starry Night Vincent van Gogh звездная ночь ван гог"
+   ]
   },
   {
    "id": "van-gogh-bedroom",
@@ -92,6 +92,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/van-gogh-bedroom.jpg",
    "credit": "Винсент Ван Гог. «Спальня в Арле», 1889. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/28560",
+   "searchExtra": "The Bedroom Vincent van Gogh",
    "levels": [
     {
      "key": "easy",
@@ -111,8 +112,7 @@
      "regions": 225,
      "colors": 26
     }
-   ],
-   "searchExtra": "The Bedroom Vincent van Gogh"
+   ]
   },
   {
    "id": "hokusai-great-wave",
@@ -122,6 +122,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/hokusai-great-wave.jpg",
    "credit": "Кацусика Хокусай. «Большая волна в Канагаве», ca. 1830–32. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/45434",
+   "searchExtra": "Under the Wave off Kanagawa (The Great Wave) Katsushika Hokusai",
    "levels": [
     {
      "key": "easy",
@@ -141,8 +142,7 @@
      "regions": 176,
      "colors": 24
     }
-   ],
-   "searchExtra": "Under the Wave off Kanagawa (The Great Wave) Katsushika Hokusai"
+   ]
   },
   {
    "id": "monet-water-lilies",
@@ -152,6 +152,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/monet-water-lilies.jpg",
    "credit": "Клод Моне. «Кувшинки (Водяные лилии)», 1906. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/16568",
+   "searchExtra": "Water Lilies Claude Monet",
    "levels": [
     {
      "key": "easy",
@@ -171,8 +172,7 @@
      "regions": 340,
      "colors": 28
     }
-   ],
-   "searchExtra": "Water Lilies Claude Monet"
+   ]
   },
   {
    "id": "van-gogh-irises",
@@ -182,6 +182,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/van-gogh-irises.jpg",
    "credit": "Винсент Ван Гог. «Ирисы», 1890. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/436528",
+   "searchExtra": "Irises Vincent van Gogh",
    "levels": [
     {
      "key": "easy",
@@ -201,8 +202,7 @@
      "regions": 186,
      "colors": 23
     }
-   ],
-   "searchExtra": "Irises Vincent van Gogh"
+   ]
   },
   {
    "id": "van-gogh-sunflowers",
@@ -212,6 +212,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/van-gogh-sunflowers.jpg",
    "credit": "Винсент Ван Гог. «Подсолнухи», 1887. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/436524",
+   "searchExtra": "Sunflowers Vincent van Gogh подсолнух ван гог",
    "levels": [
     {
      "key": "easy",
@@ -231,8 +232,7 @@
      "regions": 205,
      "colors": 28
     }
-   ],
-   "searchExtra": "Sunflowers Vincent van Gogh подсолнух ван гог"
+   ]
   },
   {
    "id": "monet-water-lily-pond-bridge",
@@ -242,6 +242,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/monet-water-lily-pond-bridge.jpg",
    "credit": "Клод Моне. «Пруд с кувшинками (японский мостик)», 1900. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/87088",
+   "searchExtra": "Water Lily Pond (Japanese footbridge) Claude Monet",
    "levels": [
     {
      "key": "easy",
@@ -261,8 +262,7 @@
      "regions": 288,
      "colors": 28
     }
-   ],
-   "searchExtra": "Water Lily Pond (Japanese footbridge) Claude Monet"
+   ]
   },
   {
    "id": "vermeer-young-woman-with-water-pitcher",
@@ -272,6 +272,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/vermeer-young-woman-with-water-pitcher.jpg",
    "credit": "Ян (Йоханнес) Вермеер. «Молодая женщина с кувшином воды», ca. 1662. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/437881",
+   "searchExtra": "Young Woman with a Water Pitcher Johannes Vermeer",
    "levels": [
     {
      "key": "easy",
@@ -291,8 +292,7 @@
      "regions": 191,
      "colors": 27
     }
-   ],
-   "searchExtra": "Young Woman with a Water Pitcher Johannes Vermeer"
+   ]
   },
   {
    "id": "hiroshige-irises-at-horikiri",
@@ -302,6 +302,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/hiroshige-irises-at-horikiri.jpg",
    "credit": "Утагава Хиросигэ. «Ирисы в Хорикири (серия „Сто знаменитых видов Эдо“)», 1857. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/26611",
+   "searchExtra": "Irises at Horikiri (One Hundred Famous Views of Edo) Utagawa Hiroshige",
    "levels": [
     {
      "key": "easy",
@@ -321,8 +322,7 @@
      "regions": 165,
      "colors": 23
     }
-   ],
-   "searchExtra": "Irises at Horikiri (One Hundred Famous Views of Edo) Utagawa Hiroshige"
+   ]
   },
   {
    "id": "van-gogh-wheat-field-with-cypresses",
@@ -332,6 +332,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/van-gogh-wheat-field-with-cypresses.jpg",
    "credit": "Винсент Ван Гог. «Пшеничное поле с кипарисами», 1889. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/436535",
+   "searchExtra": "Wheat Field with Cypresses Vincent van Gogh",
    "levels": [
     {
      "key": "easy",
@@ -351,8 +352,7 @@
      "regions": 228,
      "colors": 27
     }
-   ],
-   "searchExtra": "Wheat Field with Cypresses Vincent van Gogh"
+   ]
   },
   {
    "id": "renoir-two-sisters",
@@ -362,6 +362,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/renoir-two-sisters.jpg",
    "credit": "Пьер Огюст Ренуар. «Две сестры (На террасе)», 1881. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/14655",
+   "searchExtra": "Two Sisters (On the Terrace) Pierre-Auguste Renoir",
    "levels": [
     {
      "key": "easy",
@@ -381,8 +382,7 @@
      "regions": 335,
      "colors": 28
     }
-   ],
-   "searchExtra": "Two Sisters (On the Terrace) Pierre-Auguste Renoir"
+   ]
   },
   {
    "id": "cezanne-apples-primroses",
@@ -392,6 +392,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/cezanne-apples-primroses.jpg",
    "credit": "Поль Сезанн. «Натюрморт с яблоками и горшком примул», ca. 1890. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/435882",
+   "searchExtra": "Still Life with Apples and a Pot of Primroses Paul Cézanne",
    "levels": [
     {
      "key": "easy",
@@ -411,8 +412,7 @@
      "regions": 299,
      "colors": 28
     }
-   ],
-   "searchExtra": "Still Life with Apples and a Pot of Primroses Paul Cézanne"
+   ]
   },
   {
    "id": "caillebotte-chrysanthemums-garden",
@@ -422,6 +422,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/caillebotte-chrysanthemums-garden.jpg",
    "credit": "Гюстав Кайботт. «Хризантемы в саду в Пти-Женвилье», 1893. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/671456",
+   "searchExtra": "Chrysanthemums in the Garden at Petit-Gennevilliers Gustave Caillebotte",
    "levels": [
     {
      "key": "easy",
@@ -441,8 +442,7 @@
      "regions": 282,
      "colors": 28
     }
-   ],
-   "searchExtra": "Chrysanthemums in the Garden at Petit-Gennevilliers Gustave Caillebotte"
+   ]
   },
   {
    "id": "mucha-zodiaque",
@@ -452,6 +452,7 @@
    "kind": "classic",
    "thumb": "data/thumbs/mucha-zodiaque.jpg",
    "credit": "Альфонс Муха. «Зодиак (для журнала „La Plume“)», 1896–97. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/111986",
+   "searchExtra": "Zodiaque (\"La Plume\") Alphonse Mucha",
    "levels": [
     {
      "key": "easy",
@@ -471,8 +472,427 @@
      "regions": 230,
      "colors": 26
     }
-   ],
-   "searchExtra": "Zodiaque (\"La Plume\") Alphonse Mucha"
+   ]
+  },
+  {
+   "id": "hokusai-red-fuji",
+   "title": "Красная Фудзи",
+   "author": "Кацусика Хокусай",
+   "year": "около 1830–1832",
+   "kind": "classic",
+   "thumb": "data/thumbs/hokusai-red-fuji.jpg",
+   "credit": "Кацусика Хокусай. «Красная Фудзи (Южный ветер, ясное небо)», около 1830–1832. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/55736",
+   "searchExtra": "Hokusai Red Fuji Fine Wind Clear Morning фудзияма гора Хокусаи",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 22,
+     "colors": 13
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 40,
+     "colors": 19
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 115,
+     "colors": 24
+    }
+   ]
+  },
+  {
+   "id": "monet-cliff-walk-pourville",
+   "title": "Прогулка по скалам",
+   "author": "Клод Моне",
+   "year": "1882",
+   "kind": "classic",
+   "thumb": "data/thumbs/monet-cliff-walk-pourville.jpg",
+   "credit": "Клод Моне. «Прогулка по скалам в Пурвиле», 1882. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/14620",
+   "searchExtra": "Monet Cliff Walk Pourville море скалы",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 27,
+     "colors": 13
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 78,
+     "colors": 20
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 189,
+     "colors": 28
+    }
+   ]
+  },
+  {
+   "id": "van-gogh-roses",
+   "title": "Розы",
+   "author": "Винсент Ван Гог",
+   "year": "1890",
+   "kind": "classic",
+   "thumb": "data/thumbs/van-gogh-roses.jpg",
+   "credit": "Винсент Ван Гог. «Розы», 1890. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/436534",
+   "searchExtra": "Van Gogh Roses цветы ваза",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 40,
+     "colors": 12
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 81,
+     "colors": 17
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 226,
+     "colors": 26
+    }
+   ]
+  },
+  {
+   "id": "koson-dancing-fox",
+   "title": "Танцующая лиса",
+   "author": "Охара Косон",
+   "year": "1900–1910-е",
+   "kind": "classic",
+   "thumb": "data/thumbs/koson-dancing-fox.jpg",
+   "credit": "Охара Косон. «Танцующая лиса», 1900–1910-е. Художественный музей Кливленда. Изображение из открытого доступа музея (CC0, общественное достояние): https://clevelandart.org/art/2016.546",
+   "searchExtra": "Koson Ohara Dancing Fox лисичка японская гравюра",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 21,
+     "colors": 12
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 51,
+     "colors": 16
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 112,
+     "colors": 24
+    }
+   ]
+  },
+  {
+   "id": "hiroshige-sudden-shower-atake",
+   "title": "Ливень над мостом",
+   "author": "Утагава Хиросигэ",
+   "year": "1857",
+   "kind": "classic",
+   "thumb": "data/thumbs/hiroshige-sudden-shower-atake.jpg",
+   "credit": "Утагава Хиросигэ. «Внезапный ливень над мостом Син-Охаси и Атакэ», 1857. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/55433",
+   "searchExtra": "Hiroshige Sudden Shower Shin-Ohashi Atake дождь мост японская гравюра",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 19,
+     "colors": 11
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 65,
+     "colors": 18
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 137,
+     "colors": 23
+    }
+   ]
+  },
+  {
+   "id": "monet-poppy-field-giverny",
+   "title": "Маковое поле",
+   "author": "Клод Моне",
+   "year": "1890–1891",
+   "kind": "classic",
+   "thumb": "data/thumbs/monet-poppy-field-giverny.jpg",
+   "credit": "Клод Моне. «Маковое поле (Живерни)», 1890–1891. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/4783",
+   "searchExtra": "Monet Poppy Field Giverny маки",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 20,
+     "colors": 10
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 44,
+     "colors": 15
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 106,
+     "colors": 25
+    }
+   ]
+  },
+  {
+   "id": "van-gogh-cypresses",
+   "title": "Кипарисы",
+   "author": "Винсент Ван Гог",
+   "year": "1889",
+   "kind": "classic",
+   "thumb": "data/thumbs/van-gogh-cypresses.jpg",
+   "credit": "Винсент Ван Гог. «Кипарисы», 1889. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/437980",
+   "searchExtra": "Van Gogh Cypresses небо",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 29,
+     "colors": 13
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 53,
+     "colors": 17
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 162,
+     "colors": 28
+    }
+   ]
+  },
+  {
+   "id": "redon-vase-of-flowers",
+   "title": "Ваза с цветами",
+   "author": "Одилон Редон",
+   "year": "около 1906",
+   "kind": "classic",
+   "thumb": "data/thumbs/redon-vase-of-flowers.jpg",
+   "credit": "Одилон Редон. «Ваза с цветами (на розовом фоне)», около 1906. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/437382",
+   "searchExtra": "Redon Vase of Flowers букет",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 29,
+     "colors": 11
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 78,
+     "colors": 18
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 210,
+     "colors": 26
+    }
+   ]
+  },
+  {
+   "id": "degas-dance-class",
+   "title": "Танцевальный класс",
+   "author": "Эдгар Дега",
+   "year": "1874",
+   "kind": "classic",
+   "thumb": "data/thumbs/degas-dance-class.jpg",
+   "credit": "Эдгар Дега. «Танцевальный класс», 1874. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/438817",
+   "searchExtra": "Degas Dance Class балерины балет",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 56,
+     "colors": 14
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 126,
+     "colors": 20
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 287,
+     "colors": 28
+    }
+   ]
+  },
+  {
+   "id": "monet-stacks-of-wheat-end-of-summer",
+   "title": "Стога. Конец лета",
+   "author": "Клод Моне",
+   "year": "1890–1891",
+   "kind": "classic",
+   "thumb": "data/thumbs/monet-stacks-of-wheat-end-of-summer.jpg",
+   "credit": "Клод Моне. «Стога пшеницы (Конец лета)», 1890–1891. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/64818",
+   "searchExtra": "Monet Stacks of Wheat Haystacks сено стога",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 24,
+     "colors": 13
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 65,
+     "colors": 19
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 164,
+     "colors": 28
+    }
+   ]
+  },
+  {
+   "id": "van-gogh-oleanders",
+   "title": "Олеандры",
+   "author": "Винсент Ван Гог",
+   "year": "1888",
+   "kind": "classic",
+   "thumb": "data/thumbs/van-gogh-oleanders.jpg",
+   "credit": "Винсент Ван Гог. «Олеандры», 1888. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/436530",
+   "searchExtra": "Van Gogh Oleanders цветы книги",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 33,
+     "colors": 12
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 100,
+     "colors": 18
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 240,
+     "colors": 28
+    }
+   ]
+  },
+  {
+   "id": "van-gogh-large-plane-trees",
+   "title": "Большие платаны",
+   "author": "Винсент Ван Гог",
+   "year": "1889",
+   "kind": "classic",
+   "thumb": "data/thumbs/van-gogh-large-plane-trees.jpg",
+   "credit": "Винсент Ван Гог. «Большие платаны (Дорожные рабочие в Сен-Реми)», 1889. Художественный музей Кливленда. Изображение из открытого доступа музея (CC0, общественное достояние): https://clevelandart.org/art/1947.209",
+   "searchExtra": "Van Gogh Large Plane Trees Road Menders Saint-Remy деревья",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 41,
+     "colors": 13
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 118,
+     "colors": 18
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 270,
+     "colors": 28
+    }
+   ]
+  },
+  {
+   "id": "cassatt-childs-bath",
+   "title": "Купание ребёнка",
+   "author": "Мэри Кассат",
+   "year": "1893",
+   "kind": "classic",
+   "thumb": "data/thumbs/cassatt-childs-bath.jpg",
+   "credit": "Мэри Кассат. «Купание ребёнка», 1893. Художественный институт Чикаго. Изображение из открытого доступа музея (общественное достояние): https://www.artic.edu/artworks/111442",
+   "searchExtra": "Cassatt Child's Bath мама малыш",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 41,
+     "colors": 13
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 103,
+     "colors": 20
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 255,
+     "colors": 28
+    }
+   ]
+  },
+  {
+   "id": "rousseau-repast-of-the-lion",
+   "title": "Трапеза льва",
+   "author": "Анри Руссо",
+   "year": "около 1907",
+   "kind": "classic",
+   "thumb": "data/thumbs/rousseau-repast-of-the-lion.jpg",
+   "credit": "Анри Руссо. «Трапеза льва», около 1907. Метрополитен-музей, Нью-Йорк. Изображение из открытого доступа музея (общественное достояние): https://www.metmuseum.org/art/collection/search/438822",
+   "searchExtra": "Rousseau Repast of the Lion джунгли лев",
+   "levels": [
+    {
+     "key": "easy",
+     "label": "Лёгкая",
+     "regions": 42,
+     "colors": 14
+    },
+    {
+     "key": "mid",
+     "label": "Средняя",
+     "regions": 114,
+     "colors": 20
+    },
+    {
+     "key": "hard",
+     "label": "Сложная",
+     "regions": 261,
+     "colors": 28
+    }
+   ]
   }
  ]
 }

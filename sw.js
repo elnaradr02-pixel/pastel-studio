@@ -1,6 +1,6 @@
 // Сервис-воркер: держит всё приложение в кэше, чтобы оно открывалось без интернета.
 // При изменении любого файла приложения поднимайте VERSION — так iPad скачает новую версию.
-const VERSION = 'pastel-v4';
+const VERSION = 'pastel-v5';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest',
   'css/app.css', 'css/fonts.css',
@@ -8,6 +8,12 @@ const ASSETS = [
   'js/shapes.js', 'js/stickers.js', 'js/coloring.js', 'js/pbn.js', 'data/catalog.json',
   'fonts/comfortaa-latin.woff2', 'fonts/comfortaa-latin-ext.woff2', 'fonts/comfortaa-cyrillic.woff2', 'fonts/comfortaa-cyrillic-ext.woff2',
   'fonts/nunito-latin.woff2', 'fonts/nunito-latin-ext.woff2', 'fonts/nunito-cyrillic.woff2', 'fonts/nunito-cyrillic-ext.woff2',
+  'fonts/caveat-latin.woff2', 'fonts/caveat-latin-ext.woff2', 'fonts/caveat-cyrillic.woff2', 'fonts/caveat-cyrillic-ext.woff2',
+  'fonts/bad-script-latin.woff2', 'fonts/bad-script-latin-ext.woff2', 'fonts/bad-script-cyrillic.woff2', 'fonts/bad-script-cyrillic-ext.woff2',
+  'fonts/pangolin-latin.woff2', 'fonts/pangolin-latin-ext.woff2', 'fonts/pangolin-cyrillic.woff2', 'fonts/pangolin-cyrillic-ext.woff2',
+  'fonts/cormorant-latin.woff2', 'fonts/cormorant-latin-ext.woff2', 'fonts/cormorant-cyrillic.woff2', 'fonts/cormorant-cyrillic-ext.woff2',
+  'fonts/pacifico-latin.woff2', 'fonts/pacifico-latin-ext.woff2', 'fonts/pacifico-cyrillic.woff2', 'fonts/pacifico-cyrillic-ext.woff2',
+  'fonts/yeseva-latin.woff2', 'fonts/yeseva-latin-ext.woff2', 'fonts/yeseva-cyrillic.woff2', 'fonts/yeseva-cyrillic-ext.woff2',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png',
 ];
 

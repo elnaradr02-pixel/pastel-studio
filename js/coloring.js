@@ -96,8 +96,11 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
   const btnRedo = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Повторить' }, icon('redo'));
   const btnHint = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Подсказка: где этот номер', 'aria-pressed': 'false' }, icon('bulb'));
   const btnExport = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Сохранить как PNG' }, icon('share'));
+  const peekKind = info.kind === 'classic' ? 'classic' : info.kind === 'code' ? 'code' : 'own';
+  const PEEK = { classic: ['Посмотреть оригинал', 'Оригинал'], code: ['Как должно получиться', 'Как задумано'], own: ['Исходная картинка', 'Исходная картинка'] }[peekKind];
+  const btnPeek = h('button', { class: 'icon-btn', type: 'button', 'aria-label': PEEK[0] }, icon('image'));
   const btnMore = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Ещё' }, icon('more'));
-  actions.append(btnUndo, btnRedo, btnHint, btnExport, btnMore);
+  actions.append(btnUndo, btnRedo, btnHint, btnPeek, btnExport, btnMore);
   top.append(btnBack, title, actions);
 
   const vp = h('div', { class: 'nb-viewport', 'aria-label': 'Картина для раскрашивания' });
@@ -699,6 +702,22 @@ export async function openColoring(root, { id, level, info }, { onBack, settings
   btnRedo.addEventListener('click', redo);
   btnHint.addEventListener('click', () => { hintOn = !hintOn; btnHint.classList.toggle('on', hintOn); btnHint.setAttribute('aria-pressed', hintOn); renderHint(); if (hintOn) toast(`Номер ${sel + 1}: подсвечено, где он остался`); });
   btnExport.addEventListener('click', exportPng);
+  // подсмотреть, как выглядит картина целиком: оригинал художника, задуманные цвета или своя исходная картинка
+  btnPeek.addEventListener('click', () => {
+    const src = info.thumbBuf ? URL.createObjectURL(new Blob([info.thumbBuf], { type: 'image/jpeg' })) : info.thumb;
+    if (!src) { toast('Картинки для сравнения нет'); return; }
+    dialog({
+      title: PEEK[1],
+      render: (b) => {
+        b.parentElement.classList.add('dialog-peek');
+        b.append(h('img', { class: 'peek-img', src, alt: info.title }));
+        const sub = [info.author, info.year].filter(Boolean).join(', ');
+        b.append(h('p', { class: 'peek-cap' }, `<b>${esc(info.title)}</b>${sub ? ' · ' + esc(sub) : ''}`));
+      },
+      actions: [{ label: 'Красить дальше', value: true, primary: true }],
+    }).then(() => { if (info.thumbBuf) URL.revokeObjectURL(src); });
+  });
+
   btnMore.addEventListener('click', () => sheet({
     title: info.title,
     items: [

@@ -44,12 +44,13 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   pager.append(btnPrev, pageLabel, btnNext, btnAdd);
   titleBox.append(pager);
   const actions = h('div', { class: 'nb-actions' });
+  const btnText = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Текст' }, icon('text'));
   const btnSticker = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Стикеры' }, icon('sticker'));
   const btnUndo = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Отменить' }, icon('undo'));
   const btnRedo = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Повторить' }, icon('redo'));
   const btnExport = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Сохранить страницу как PNG' }, icon('share'));
   const btnMore = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Ещё' }, icon('more'));
-  actions.append(btnSticker, btnUndo, btnRedo, btnExport, btnMore);
+  actions.append(btnText, btnSticker, btnUndo, btnRedo, btnExport, btnMore);
   top.append(btnBack, titleBox, actions);
 
   const vp = h('div', { class: 'nb-viewport', 'aria-label': 'Страница для рисования' });
@@ -250,30 +251,42 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     drawn = -1;
     liveBox = null;
     lastPt = null;
-    holdAt = null;
+    holdAt = null; trail = [];
     clearTimeout(holdTimer);
     addPoints(e);
   }
 
   // ---------- фигуры: нарисовали и задержали карандаш ----------
-  let holdTimer = 0, holdAt = null;
+  // Настоящий карандаш на стекле не стоит идеально: он дрожит и чуть уплывает. «Стоит» = последние HOLD_MS
+  // все положения карандаша лежат в круге HOLD_PX вокруг текущего. Точки, набежавшие за время удержания,
+  // в распознавание не идут — иначе комок дрожи у конца портит фигуру.
+  const HOLD_MS = 500, HOLD_PX = 9;
+  let holdTimer = 0, holdAt = null, trail = [];
   function armHold(cx, cy) {
     if (!stroke || stroke.tool === 'eraser' || stroke.snapped || settings.shapes === false) return;
-    if (holdAt && Math.hypot(cx - holdAt.x, cy - holdAt.y) < 4) return; // карандаш стоит — таймер идёт
-    holdAt = { x: cx, y: cy };
+    const now = performance.now();
+    trail.push({ t: now, x: cx, y: cy, n: stroke.pts.length });
+    while (trail.length && now - trail[0].t > 2000) trail.shift();
+    // с какого момента карандаш не выходил из круга вокруг текущей точки
+    let k = trail.length - 1;
+    while (k > 0 && Math.hypot(trail[k - 1].x - cx, trail[k - 1].y - cy) < HOLD_PX) k--;
+    const since = trail[k];
+    holdAt = { x: cx, y: cy, n: since.n, t: since.t };
     clearTimeout(holdTimer);
-    holdTimer = setTimeout(trySnap, 550);
+    holdTimer = setTimeout(trySnap, Math.max(0, since.t + HOLD_MS - now));
   }
   function trySnap() {
     if (!stroke || stroke.snapped) return;
-    const res = recognize(stroke.pts, STRIDE);
+    const body = holdAt ? stroke.pts.slice(0, Math.max(STRIDE * 2, holdAt.n)) : stroke.pts;
+    const res = recognize(body, STRIDE);
     if (!res) return;
-    const p = stroke.pts, ws = [];
+    const p = body, ws = [];
     let as = 0;
     for (let i = 0; i < p.length; i += STRIDE) { ws.push(p[i + 2]); as += p[i + 3]; }
     ws.sort((a, b) => a - b);
     const w = stroke.tool === 'marker' ? stroke.size : ws[Math.floor(ws.length / 2)];
     const a = as / (p.length / STRIDE);
+    stroke.raw = stroke.pts;
     clearLive(liveBox);
     liveBox = null;
     const pts = [];
@@ -286,6 +299,17 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     else ink.drawIncrement(liveCtx, stroke, 0, n - 1);
     drawn = n - 1;
     toast(SHAPE_NAMES[res.type] || 'Фигура');
+  }
+
+  function unsnap() {
+    clearLive(liveBox);
+    liveBox = null;
+    stroke.pts = stroke.raw;
+    delete stroke.raw;
+    stroke.snapped = false;
+    for (let i = 0; i < stroke.pts.length; i += STRIDE) growBox(stroke.pts[i], stroke.pts[i + 1], stroke.pts[i + 2]);
+    drawn = -1;
+    holdAt = null; trail = [];
   }
 
   function widthFor(e, x, y, t, tool) {
@@ -328,6 +352,12 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
 
   const pressures = [];
   function addPoints(e) {
+    if (stroke.snapped) {
+      // фигура уже выровнена: дрожь карандаша до отрыва не дорисовываем,
+      // а если карандаш явно повели дальше — значит, фигура не нужна, штрих снова рукописный
+      if (!holdAt || Math.hypot(e.clientX - holdAt.x, e.clientY - holdAt.y) < HOLD_PX * 3) return;
+      unsnap();
+    }
     const list = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
     for (const ev of list) {
       if (ev.pointerType === 'pen' && !hasPressure) {
@@ -398,7 +428,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     clearTimeout(holdTimer);
     const s = stroke;
     stroke = null; strokePtr = null;
-    delete s.snapped;
+    delete s.snapped; delete s.raw;
     const n = s.pts.length / STRIDE;
     if (!n) { clearLive(liveBox); return; }
     // дорисовать хвост
@@ -577,7 +607,15 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     stickerEls.clear();
     for (const st of page.stickers) { const el = stk.renderSticker(st); stickerLayer.append(el); stickerEls.set(st.id, el); }
     updateSel();
+    // текст со шрифтом, который ещё не загружен: показать сразу запасным, перерисовать, когда шрифт готов
+    const pending = page.stickers.filter((x) => stk.isText(x.key) && !fontTried.has(x.font) && !document.fonts.check(stk.fontCss(stk.fontOf(x.font), 40), x.text || 'Aa'));
+    if (pending.length) {
+      const pg = page;
+      for (const x of pending) fontTried.add(x.font);
+      stk.loadFonts(pending).then(() => { if (pg === page && !stickOp) renderStickers(); });
+    }
   }
+  const fontTried = new Set();
   function updateSel() {
     const st = selected && stickerById(selected);
     if (!st) { selBox.hidden = true; selected = null; return; }
@@ -587,13 +625,13 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     selBox.style.height = hh + 'px';
     selBox.style.transform = `translate(${st.x - w / 2}px, ${st.y - hh / 2}px) rotate(${st.r}rad) scale(${st.s})`;
     selBox.style.setProperty('--k', 1 / (st.s * view.s)); // ручки одного размера на экране при любом масштабе
-    selBox.classList.toggle('has-text', stk.isLabel(st.key));
+    selBox.classList.toggle('has-text', stk.hasEditableText(st.key));
   }
   function handleAt(st, x, y) {
     const { w, h: hh } = stk.baseSize(st);
     const R = 28 / view.s;
     const spots = [['del', -w / 2, -hh / 2], ['scale', w / 2, hh / 2]];
-    if (stk.isLabel(st.key)) spots.push(['text', w / 2, -hh / 2]);
+    if (stk.hasEditableText(st.key)) spots.push(['text', w / 2, -hh / 2]);
     for (const [k, lx, ly] of spots) { const p = stk.fromLocal(st, lx, ly); if (Math.hypot(p.x - x, p.y - y) < R) return k; }
     return stk.hit(st, x, y, 6 / view.s) ? 'move' : null;
   }
@@ -645,6 +683,10 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     const st = { id: db.uid(), key, x: Math.min(PAGE_W - 80, Math.max(80, c.x)), y: Math.min(PAGE_H - 80, Math.max(80, c.y)), s: 1, r: 0 };
     const { w, h: hh } = stk.baseSize(st);
     st.s = Math.min(2, Math.max(0.4, 160 / view.s / Math.max(w, hh))); // около 160 точек на экране
+    insertSticker(st);
+    toast('Тяните за середину, уголок — размер и поворот');
+  }
+  function insertSticker(st) {
     page.stickers.push(st);
     const el = stk.renderSticker(st);
     stickerLayer.append(el);
@@ -655,7 +697,55 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     future = [];
     updateUndo();
     scheduleSave();
-    toast('Тяните за середину, уголок — размер и поворот');
+  }
+
+  // ---------- текст с выбором шрифта ----------
+  async function textDialog(st) {
+    const cur = st ? { font: st.font, color: st.color } : { font: settings.textFont || 'caveat', color: prefs.color };
+    await stk.loadFonts(stk.FONTS.map((f) => ({ key: 'T', font: f.id, text: 'Аа Әә Ққ Өө' })));
+    return dialog({
+      title: st ? 'Изменить текст' : 'Текст',
+      render: (body) => {
+        body.parentElement.classList.add('dialog-texttool');
+        const ta = h('textarea', { class: 'field text-input', rows: 3, maxlength: 600, 'aria-label': 'Текст', placeholder: 'Напишите что-нибудь…' });
+        ta.value = st ? st.text : '';
+        const fonts = h('div', { class: 'font-pick', role: 'radiogroup', 'aria-label': 'Шрифт' });
+        const colors = h('div', { class: 'dock-swatches text-colors', role: 'radiogroup', 'aria-label': 'Цвет текста' });
+        const sync = () => {
+          const f = stk.fontOf(cur.font);
+          ta.style.font = stk.fontCss(f, Math.round(24 * f.k));
+          ta.style.color = cur.color;
+          for (const b of fonts.children) { const on = b.dataset.id === cur.font; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); }
+          for (const b of colors.children) { const on = b.dataset.c === cur.color; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); }
+        };
+        for (const f of stk.FONTS) {
+          const b = h('button', { class: 'font-chip', type: 'button', role: 'radio', 'data-id': f.id, style: `font:${stk.fontCss(f, Math.round(19 * f.k))}` }, esc(f.name));
+          b.addEventListener('click', () => { cur.font = f.id; sync(); });
+          fonts.append(b);
+        }
+        for (const c of ink.PALETTE) {
+          const b = h('button', { class: 'swatch', type: 'button', role: 'radio', 'aria-label': c.name, title: c.name, 'data-c': c.hex, style: `--c:${c.hex}` });
+          b.addEventListener('click', () => { cur.color = c.hex; sync(); });
+          colors.append(b);
+        }
+        body.append(ta, h('div', { class: 'field-label' }, 'Шрифт'), fonts, h('div', { class: 'field-label' }, 'Цвет'), colors);
+        sync();
+        setTimeout(() => ta.focus({ preventScroll: true }), 60);
+        return { value: () => ({ text: ta.value.replace(/\s+$/, ''), font: cur.font, color: cur.color }) };
+      },
+      actions: [{ label: 'Отмена', value: null }, { label: st ? 'Готово' : 'Добавить', primary: true }],
+    });
+  }
+  async function addText() {
+    const res = await textDialog(null);
+    if (!res || !res.text.trim()) return;
+    settings.textFont = res.font; db.setMeta('textFont', res.font);
+    const r = vp.getBoundingClientRect();
+    const c = toPage(r.left + vp.clientWidth / 2, r.top + availH() / 2);
+    const st = { id: db.uid(), key: 'T', text: res.text, font: res.font, color: res.color, x: Math.min(PAGE_W - 60, Math.max(60, c.x)), y: Math.min(PAGE_H - 60, Math.max(60, c.y)), s: Math.min(3, Math.max(0.4, 0.6 / view.s)), r: 0 };
+    await stk.loadFonts([st]);
+    insertSticker(st);
+    toast('Тяните за середину, уголок — размер и поворот, «Aa» — изменить');
   }
   function deleteSticker(st) {
     const index = page.stickers.findIndex((x) => x.id === st.id);
@@ -671,6 +761,24 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
     scheduleSave();
   }
   async function editText(st) {
+    if (stk.isText(st.key)) {
+      const res = await textDialog(st);
+      if (!res || !res.text.trim()) return;
+      const before = { ...st };
+      Object.assign(st, res);
+      settings.textFont = res.font; db.setMeta('textFont', res.font);
+      await stk.loadFonts([st]);
+      const old = stickerEls.get(st.id);
+      const el = stk.renderSticker(st);
+      old.replaceWith(el);
+      stickerEls.set(st.id, el);
+      updateSel();
+      history.push({ type: 'stEdit', id: st.id, before, after: { ...st } });
+      future = [];
+      updateUndo();
+      scheduleSave();
+      return;
+    }
     const value = await dialog({
       title: 'Текст метки',
       render: (body) => {
@@ -726,7 +834,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   }
   function onMove(e) {
     if (e.pointerType === 'pen') penUntil = performance.now() + PEN_GUARD_MS;
-    if (stroke && e.pointerId === strokePtr) { e.preventDefault(); if (!stroke.snapped) addPoints(e); return; }
+    if (stroke && e.pointerId === strokePtr) { e.preventDefault(); addPoints(e); return; }
     if (stickOp && e.pointerId === stickOp.pid) { e.preventDefault(); moveStickOp(e); return; }
     if (touches.has(e.pointerId)) {
       e.preventDefault();
@@ -774,6 +882,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   }, { passive: false });
 
   const onKey = (e) => {
+    if (e.target.closest && e.target.closest('input, textarea')) return; // в поле ввода Cmd+Z отменяет набранный текст, а не штрих
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
   };
   document.addEventListener('keydown', onKey);
@@ -913,6 +1022,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   btnExport.addEventListener('click', exportPng);
   btnMore.addEventListener('click', moreMenu);
   btnSticker.addEventListener('click', addSticker);
+  btnText.addEventListener('click', addText);
 
   const ro = new ResizeObserver(() => { fitView(); hideDetail(); });
   ro.observe(vp);
@@ -922,7 +1032,7 @@ export async function openNotebook(root, notebookId, { onBack, settings }) {
   showPage();
 
   // для автотестов: состояние без доступа к внутренностям
-  window.__pastel = { get stickers() { return page.stickers.length; }, get selected() { return selected; }, get lastShape() { const s = page.strokes[page.strokes.length - 1]; return s ? s.pts.length / STRIDE : 0; }, get strokes() { return page.strokes.length; }, get page() { return idx; }, get pages() { return pages.length; }, get zoom() { return view.s / view.fit; }, flushSave };
+  window.__pastel = { get stickers() { return page.stickers.length; }, get selected() { return selected; }, get lastShape() { const s = page.strokes[page.strokes.length - 1]; return s ? s.pts.length / STRIDE : 0; }, get strokes() { return page.strokes.length; }, get lastBox() { const s = page.strokes[page.strokes.length - 1]; if (!s) return null; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (let i = 0; i < s.pts.length; i += STRIDE) { x0 = Math.min(x0, s.pts[i]); x1 = Math.max(x1, s.pts[i]); y0 = Math.min(y0, s.pts[i + 1]); y1 = Math.max(y1, s.pts[i + 1]); } return [x0, y0, x1, y1].map(Math.round); }, get page() { return idx; }, get pages() { return pages.length; }, get zoom() { return view.s / view.fit; }, flushSave };
 
   return async function cleanup() {
     await flushSave();

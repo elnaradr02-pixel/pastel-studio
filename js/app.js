@@ -18,6 +18,7 @@ async function boot() {
   settings.brushPt = await db.getMeta('brushPt', 26);
   settings.shapes = await db.getMeta('shapes', true);
   settings.colorBrush = await db.getMeta('colorBrush', 'water');
+  settings.textFont = await db.getMeta('textFont', 'caveat');
   window.addEventListener('hashchange', route);
   // первое касание — просим постоянное хранилище (Safari решает сам, чаще соглашается для приложения с экрана «Домой»)
   window.addEventListener('pointerdown', async function once() {
@@ -39,7 +40,7 @@ async function route() {
   } else if (c) {
     const cat = await catalog();
     const own = c[1].startsWith('u-') ? await db.get('userpics', c[1]) : null;
-    const info = own ? { title: own.title } : cat.find((p) => p.id === c[1]) || { title: 'Раскраска' };
+    const info = own ? { title: own.title, kind: 'own', thumbBuf: own.thumb } : cat.find((p) => p.id === c[1]) || { title: 'Раскраска' };
     cleanup = await openColoring(root, { id: c[1], level: c[2], info }, { onBack: () => { location.hash = '#/colors'; }, settings });
   } else {
     await renderHome(location.hash.startsWith('#/colors') ? 'colors' : 'notebooks');

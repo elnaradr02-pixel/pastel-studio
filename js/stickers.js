@@ -57,9 +57,55 @@ const NAMES = {
 export function stickerName(key) { return isLabel(key) ? `Метка «${labelDefs[key.slice(2)].text}»` : NAMES[key] || 'Стикер'; }
 
 export function isLabel(key) { return key.startsWith('L:'); }
+export function isText(key) { return key === 'T'; }
+export function hasEditableText(key) { return isLabel(key) || isText(key); }
+
+// ---------- текст с выбором шрифта ----------
+// k выравнивает видимый размер: рукописные шрифты мельче при том же кегле
+export const FONTS = [
+  { id: 'nunito', name: 'Простой', family: "'Nunito', sans-serif", weight: 600, style: 'normal', k: 1 },
+  { id: 'comfortaa', name: 'Округлый', family: "'Comfortaa', sans-serif", weight: 600, style: 'normal', k: 0.95 },
+  { id: 'caveat', name: 'Рукописный', family: "'Caveat', cursive", weight: 500, style: 'normal', k: 1.3 },
+  { id: 'bad-script', name: 'Каллиграфия', family: "'Bad Script', cursive", weight: 400, style: 'normal', k: 1.05 },
+  { id: 'pangolin', name: 'Маркер', family: "'Pangolin', cursive", weight: 400, style: 'normal', k: 1.05 },
+  { id: 'cormorant', name: 'Изящный', family: "'Cormorant Garamond', serif", weight: 600, style: 'italic', k: 1.2 },
+  { id: 'pacifico', name: 'Леттеринг', family: "'Pacifico', cursive", weight: 400, style: 'normal', k: 0.9 },
+  { id: 'yeseva', name: 'Заголовок', family: "'Yeseva One', serif", weight: 400, style: 'normal', k: 1 },
+];
+export const TEXT_SIZE = 44;   // кегль текста в единицах страницы при масштабе 1
+const TEXT_PAD = 12;
+export function fontOf(id) { return FONTS.find((f) => f.id === id) || FONTS[0]; }
+export function fontCss(f, px) { return `${f.style} ${f.weight} ${px}px ${f.family}`; }
+export function textLines(text) { return String(text || '').split('\n'); }
+
+const measureCv = typeof document !== 'undefined' ? document.createElement('canvas').getContext('2d') : null;
+const textBoxCache = new Map();
+function textBox(st) {
+  const key = `${st.font}|${st.text}`;
+  if (textBoxCache.has(key)) return textBoxCache.get(key);
+  const f = fontOf(st.font), px = TEXT_SIZE * f.k, lh = Math.round(px * 1.32);
+  measureCv.font = fontCss(f, px);
+  const lines = textLines(st.text);
+  let w = 0;
+  for (const ln of lines) w = Math.max(w, measureCv.measureText(ln || ' ').width);
+  // запас справа: у курсивов и рукописных шрифтов хвосты букв выходят за измеренную ширину
+  const box = { w: Math.ceil(w + px * 0.25) + TEXT_PAD * 2, h: lines.length * lh + TEXT_PAD * 2, px, lh, f, lines };
+  textBoxCache.set(key, box);
+  return box;
+}
+// шрифты грузятся лениво: перед показом и экспортом текста убеждаемся, что они готовы
+export async function loadFonts(stickers) {
+  const need = new Map();
+  for (const st of stickers) if (isText(st.key)) { const f = fontOf(st.font); need.set(f.id + st.text, document.fonts.load(fontCss(f, 40), st.text || 'Aa')); }
+  if (!need.size) return false;
+  try { await Promise.all(need.values()); } catch { /* шрифт не загрузился — останется запасной */ }
+  textBoxCache.clear();
+  return true;
+}
 
 // размер стикера в единицах страницы при масштабе 1
 export function baseSize(st) {
+  if (isText(st.key)) { const b = textBox(st); return { w: b.w, h: b.h }; }
   if (isLabel(st.key)) {
     const d = labelDefs[st.key.slice(2)];
     const text = st.text ?? d.text;
@@ -87,7 +133,15 @@ export function renderSticker(st) {
   const el = h('div', { class: 'sticker', 'data-id': st.id });
   el.style.width = w + 'px';
   el.style.height = hh + 'px';
-  if (isLabel(st.key)) {
+  if (isText(st.key)) {
+    const b = textBox(st);
+    el.classList.add('textblock');
+    el.style.font = fontCss(b.f, b.px);
+    el.style.lineHeight = b.lh + 'px';
+    el.style.color = st.color || '#3A3236';
+    el.style.padding = TEXT_PAD + 'px';
+    el.innerHTML = b.lines.map((ln) => `<span>${esc(ln) || '&nbsp;'}</span>`).join('');
+  } else if (isLabel(st.key)) {
     const L = labelInfo(st);
     el.classList.add('label', 'label-' + L.shape);
     el.style.setProperty('--bg', L.bg);
@@ -141,10 +195,20 @@ export async function drawStickers(ctx, stickers) {
     ctx.translate(st.x, st.y);
     ctx.rotate(st.r);
     ctx.scale(st.s, st.s);
-    if (isLabel(st.key)) drawLabel(ctx, labelInfo(st), w, hh);
+    if (isText(st.key)) await drawText(ctx, st, w, hh);
+    else if (isLabel(st.key)) drawLabel(ctx, labelInfo(st), w, hh);
     else { try { ctx.drawImage(await svgImage(st.key), -w / 2, -hh / 2, w, hh); } catch { /* картинка не загрузилась — пропускаем */ } }
     ctx.restore();
   }
+}
+
+async function drawText(ctx, st, w, hh) {
+  const b = textBox(st);
+  try { await document.fonts.load(fontCss(b.f, 40), st.text || 'Aa'); } catch { /* запасной шрифт */ }
+  ctx.font = fontCss(b.f, b.px);
+  ctx.fillStyle = st.color || '#3A3236';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  b.lines.forEach((ln, i) => ctx.fillText(ln, -w / 2 + TEXT_PAD, -hh / 2 + TEXT_PAD + b.lh * (i + 0.5)));
 }
 
 function drawLabel(ctx, L, w, hh) {

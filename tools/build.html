@@ -43,8 +43,17 @@ function outlinePreview(pic, size) {
 }
 
 // обрезать тёмную раму/поля по краям картины и ещё чуть-чуть внутрь
-function autoCrop(img, inset) {
+// ручная обрезка светлых бумажных полей (у гравюр): доли ширины и высоты [слева, сверху, справа, снизу]
+function manualCrop(img, [l, t, r, b]) {
   const W = img.naturalWidth, H = img.naturalHeight;
+  const x = Math.round(W * l), y = Math.round(H * t), w = Math.round(W * r) - x, hh = Math.round(H * b) - y;
+  const c = document.createElement('canvas'); c.width = w; c.height = hh;
+  c.getContext('2d').drawImage(img, x, y, w, hh, 0, 0, w, hh);
+  return c;
+}
+
+function autoCrop(img, inset) {
+  const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0);
   const d = g.getImageData(0, 0, W, H).data;
@@ -73,7 +82,7 @@ window.buildPicture = async (job) => {
     const raw = new Image();
     raw.src = job.dataUrl;
     await raw.decode();
-    const img = autoCrop(raw, job.inset ?? 0.006);
+    const img = autoCrop(job.crop ? manualCrop(raw, job.crop) : raw, job.inset ?? 0.006);
     pic = pbn.buildFromImage(img, job.opts);
     const t = document.createElement('canvas'); const k = 560 / Math.max(img.width, img.height);
     t.width = Math.round(img.width * k); t.height = Math.round(img.height * k);

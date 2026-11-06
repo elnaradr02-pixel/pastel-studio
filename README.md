@@ -26,7 +26,7 @@ python3 -m http.server 8790 --bind 127.0.0.1
 | `js/db.js` | хранилище IndexedDB |
 | `js/ui.js`, `js/icons.js`, `js/covers.js` | меню и диалоги, иконки, обложки |
 | `js/shapes.js` | распознавание фигур по удержанию карандаша |
-| `js/stickers.js` | стикеры: рисунки, метки с текстом, выбор |
+| `js/stickers.js` | стикеры: рисунки, метки с текстом, текст с выбором шрифта |
 | `js/coloring.js` | экран раскраски: акварель и заливка в границах номера, 90 %, подсказка, прогресс |
 | `js/pbn.js` | сборщик раскраски из картинки (области, номера, места для цифр); им же собирается «Своя картинка» на iPad |
 | `data/` | готовые раскраски: `catalog.json`, карты областей `.bin`, палитры `.json`, миниатюры |
@@ -35,6 +35,8 @@ python3 -m http.server 8790 --bind 127.0.0.1
 | `css/app.css` | оформление, все цвета в начале файла |
 | `sw.js` | офлайн-кэш. **После любых правок поднять `VERSION`**, иначе iPad покажет старую версию |
 
-Шрифты Comfortaa и Nunito лежат в `fonts/` (SIL Open Font License 1.1).
+Шрифты лежат в `fonts/`, все под SIL Open Font License 1.1:
+- Comfortaa и Nunito — для интерфейса;
+- Caveat, Bad Script, Pangolin, Cormorant Garamond, Pacifico и Yeseva One — для текста в блокноте.
 
 План, решения и рекомендации — в `docs/plan.md`.
